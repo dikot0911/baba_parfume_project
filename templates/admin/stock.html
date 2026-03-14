@@ -1,0 +1,219 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Manajemen Stok{% endblock %}
+{% block header %}Manajemen Stok Parfum{% endblock %}
+
+{% block content %}
+<div x-data="{ showAddModal: false }">
+
+    <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+        <div class="relative w-full md:w-96">
+            <i data-lucide="search" class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5"></i>
+            <input type="text" placeholder="Cari nama parfum atau notes..." class="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent">
+        </div>
+        <button @click="showAddModal = true" class="w-full md:w-auto bg-gray-900 hover:bg-gray-800 text-white px-6 py-2 rounded-lg font-medium flex items-center justify-center space-x-2 transition-colors shadow-lg hover:shadow-xl">
+            <i data-lucide="plus" class="w-5 h-5"></i>
+            <span>Tambah Parfum Baru</span>
+        </button>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
+            <table class="w-full whitespace-nowrap">
+                <thead class="bg-gray-50 border-b border-gray-100 sticky top-0 z-10">
+                    <tr class="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                        <th class="px-6 py-4">Produk & Detail</th>
+                        <th class="px-6 py-4">Wangi (Notes)</th>
+                        <th class="px-6 py-4">Harga</th>
+                        <th class="px-6 py-4 text-center">Stok</th>
+                        <th class="px-6 py-4">Status</th>
+                        <th class="px-6 py-4 text-center">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 text-sm">
+                    
+                    {% for item in produk %}
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="px-6 py-4">
+                            <div class="flex items-center space-x-4">
+                                <img src="{{ item.image_url }}" alt="{{ item.name }}" class="w-12 h-12 rounded-lg object-cover border border-gray-200">
+                                <div>
+                                    <p class="font-bold text-gray-800 text-base">{{ item.name }}</p>
+                                    <p class="text-xs text-gray-500 truncate w-48" title="{{ item.tagline }}">{{ item.tagline }}</p>
+                                    <p class="text-[10px] font-semibold text-yellow-600 mt-1 uppercase">{{ item.tags | join(', ') }}</p>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="text-xs text-gray-600 space-y-1">
+                                <p><span class="font-semibold text-gray-800">Top:</span> {{ item.top_notes | join(', ') }}</p>
+                                <p><span class="font-semibold text-gray-800">Heart:</span> {{ item.heart_notes | join(', ') }}</p>
+                                <p><span class="font-semibold text-gray-800">Base:</span> {{ item.base_notes | join(', ') }}</p>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <p class="font-bold text-gray-800">${{ item.discounted_price }}</p>
+                            <p class="text-xs text-gray-400 line-through">${{ item.original_price }}</p>
+                        </td>
+                        <td class="px-6 py-4 text-center font-bold text-gray-800 text-lg">
+                            {{ item.stock_quantity }}
+                        </td>
+                        <td class="px-6 py-4">
+                            {% if item.stock_quantity > 10 %}
+                                <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold">Aman</span>
+                            {% elif item.stock_quantity > 0 %}
+                                <span class="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-bold">Menipis</span>
+                            {% else %}
+                                <span class="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-bold">Habis</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="flex justify-center space-x-2">
+                                <button class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit Data">
+                                    <i data-lucide="edit-2" class="w-4 h-4"></i>
+                                </button>
+                                <button class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Hapus Produk">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="px-6 py-10 text-center text-gray-500">
+                            <i data-lucide="package-x" class="w-12 h-12 mx-auto mb-3 text-gray-300"></i>
+                            <p class="font-medium text-lg">Belum ada data parfum</p>
+                            <p class="text-sm">Pastikan database Supabase sudah terhubung dengan benar.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+
+                </tbody>
+            </table>
+        </div>
+        <div class="p-4 border-t border-gray-100 bg-gray-50 flex justify-between items-center text-sm text-gray-600">
+            <p>Total Produk: <span class="font-bold text-gray-800">{{ produk | length }} Item</span></p>
+        </div>
+    </div>
+
+    <div x-show="showAddModal" style="display: none;" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div x-show="showAddModal" x-transition.opacity class="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity"></div>
+
+        <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:p-0">
+            <div x-show="showAddModal" 
+                 x-transition:enter="ease-out duration-300" 
+                 x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" 
+                 x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" 
+                 x-transition:leave="ease-in duration-200" 
+                 x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" 
+                 x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" 
+                 class="relative inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl w-full">
+                
+                <div class="bg-gray-900 px-6 py-4 flex justify-between items-center">
+                    <h3 class="text-xl leading-6 font-bold text-white flex items-center" id="modal-title">
+                        <i data-lucide="package-plus" class="w-5 h-5 mr-2 text-yellow-500"></i> Tambah Parfum Baru
+                    </h3>
+                    <button @click="showAddModal = false" class="text-gray-400 hover:text-white transition-colors">
+                        <i data-lucide="x" class="w-6 h-6"></i>
+                    </button>
+                </div>
+
+                <form action="/admin/add-product" method="POST" class="px-6 py-6 max-h-[70vh] overflow-y-auto">
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="space-y-4">
+                            <h4 class="font-bold text-gray-800 border-b pb-2">Informasi Dasar</h4>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Nama Parfum <span class="text-red-500">*</span></label>
+                                <input type="text" placeholder="Cth: BABA EXTREME" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:outline-none">
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Kategori</label>
+                                    <select class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:outline-none">
+                                        <option value="1">Top Seller</option>
+                                        <option value="2">Man</option>
+                                        <option value="3">Woman</option>
+                                        <option value="4">Netral</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Gender Tag</label>
+                                    <input type="text" placeholder="Cth: Man, Unisex" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:outline-none">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Tagline Singkat</label>
+                                <input type="text" placeholder="Cth: Bold. Signature. Unforgettable." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Deskripsi Lengkap</label>
+                                <textarea rows="3" placeholder="Ceritakan karakter wangi parfum ini..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:outline-none"></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Rekomendasi Pemakaian</label>
+                                <input type="text" placeholder="Cth: Malam / formal / musim dingin" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:outline-none">
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <h4 class="font-bold text-gray-800 border-b pb-2">Spesifikasi & Harga</h4>
+                            
+                            <div class="grid grid-cols-1 gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-600 mb-1">Top Notes (Pisahkan dgn koma)</label>
+                                    <input type="text" placeholder="Cth: Bergamot, Grapefruit" class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-yellow-500 focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-600 mb-1">Heart Notes</label>
+                                    <input type="text" placeholder="Cth: Lavender, Jasmine" class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-yellow-500 focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-600 mb-1">Base Notes</label>
+                                    <input type="text" placeholder="Cth: Cedarwood, Musk" class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-yellow-500 focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-600 mb-1">Ketahanan (Longevity)</label>
+                                    <input type="text" placeholder="Cth: 8-12 jam" class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-yellow-500 focus:outline-none">
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-3 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Harga Asli ($)</label>
+                                    <input type="number" placeholder="14" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Harga Diskon</label>
+                                    <input type="number" placeholder="10" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Jml Stok <span class="text-red-500">*</span></label>
+                                    <input type="number" placeholder="0" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:outline-none">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">URL Gambar (Link Foto)</label>
+                                <input type="text" placeholder="https://..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:outline-none">
+                            </div>
+                        </div>
+                    </div>
+
+                </form>
+
+                <div class="bg-gray-50 px-6 py-4 border-t border-gray-200 flex justify-end space-x-3 rounded-b-2xl">
+                    <button @click="showAddModal = false" type="button" class="px-6 py-2 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-100 transition-colors">
+                        Batal
+                    </button>
+                    <div class="bg-gray-50 px-6 py-4 border-t border-gray-200 flex justify-end space-x-3 rounded-b-2xl">
+                    <button type="submit" class="px-6 py-2 bg-gray-900 text-white font-medium rounded-lg hover:bg-gray-800 transition-colors shadow-lg">
+                        Simpan Parfum
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
