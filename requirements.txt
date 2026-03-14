@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+aiogram
+supabase
+jinja2
+python-dotenv
+websockets==12.0
