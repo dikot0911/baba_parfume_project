@@ -371,11 +371,7 @@ async def api_get_live_products():
 # EKSEKUSI SERVER
 # ==============================================================================
 if __name__ == "__main__":
-    print("\n" + "=".center(60, "="))
-    print("🚀 BABA PARFUME ENTERPRISE ENGINE".center(60))
-    print("=".center(60, "="))
-    print("🌐 Web Pelanggan   : http://localhost:8000/")
-    print("🛠️  Panel Admin     : http://localhost:8000/admin")
-    print("=".center(60, "=") + "\n")
-    
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+    # AMBIL PORT DARI RENDER
+    port = int(os.environ.get("PORT", 8000))
+    # JALANKAN DENGAN HOST 0.0.0.0
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
