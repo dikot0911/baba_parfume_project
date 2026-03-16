@@ -55,12 +55,6 @@ async def lifespan(app: FastAPI):
         bot_task.cancel()
     await bot.session.close()
 
-# 3. INISIALISASI APP (HANYA BOLEH ADA SATU BARIS INI!)
-app = FastAPI(
-    title="BABA Parfume Enterprise",
-    lifespan=lifespan  # <--- WAJIB ADA INI BIAR BOT NYALA
-)
-
 # ==============================================================================
 # 1. DATABASE CONNECTION & APP INIT
 # ==============================================================================
@@ -74,7 +68,8 @@ except ImportError:
 app = FastAPI(
     title="BABA Parfume Enterprise Engine",
     description="Backend Monolith Terstruktur",
-    version="3.5.0"
+    version="3.5.0",
+    lifespan=lifespan
 )
 
 app.add_middleware(
