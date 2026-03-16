@@ -2,1265 +2,655 @@
 <html lang="id" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=0.8, viewport-fit=cover">
-    <title>BABA Parfume — Wangi yang Bikin Lo Jadi Trademark</title>
-    <meta name="description" content="Temukan aroma signature Anda dari koleksi premium BABA Parfume. Dibuat dari bibit impor berkualitas, tahan lama, dan halal. Pesan sekarang via WhatsApp.">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BABA Parfume — Signature Scent</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    
     <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.js"></script>
-
+    
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
     <style>
-        /* Custom Styles */
-        :root {
-            --charcoal: #1E2022;
-            --gold: #D4AF37; /* A classic gold */
-            --deep-amber: #B58A3F; /* A deeper, more subtle amber/gold */
-            --off-white: #F8F8F8;
-        }
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--off-white);
-            color: var(--charcoal);
-        }
-        .bg-charcoal { background-color: var(--charcoal); }
-        .text-charcoal { color: var(--charcoal); }
-        .bg-gold { background-color: var(--deep-amber); }
-        .text-gold { color: var(--deep-amber); }
-        .border-gold { border-color: var(--deep-amber); }
-
-        .hero-section {
-            background-image: linear-gradient(to right, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.2)), url('https://drive.google.com/uc?id=1MvAryGerNRfGvydoRtp4yHDepHCfxvHl');
-            background-size: cover;
-            background-position: center;
-			min-height: 60vh;
-        }
-
-        .product-card {
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-        .product-card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-        }
-
-        /* Modal Styles */
-        .modal-backdrop {
-            transition: opacity 0.3s ease-in-out;
-        }
-        .modal-content {
-            transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
-            transform: translateY(20px) scale(0.95);
-            opacity: 0;
-        }
-        .modal.active .modal-backdrop {
-            opacity: 1;
-        }
-        .modal.active .modal-content {
-            transform: translateY(0) scale(1);
-            opacity: 1;
-        }
+        /* SCROLLBAR HIDING FOR NATIVE APP FEEL */
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
-        /* Filter Button Active State */
-        .filter-btn.active {
-            background-color: var(--charcoal);
-            color: white;
+        /* BASE SETUP */
+        body { 
+            background-color: #F8F9FA; 
+            -webkit-tap-highlight-color: transparent; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        /* CUSTOM ANIMATIONS */
+        @keyframes fade-in-up {
+            0% { opacity: 0; transform: translateY(10px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in-up { animation: fade-in-up 0.4s ease-out forwards; }
+        
+        /* GLASSMORPHISM */
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
         }
     </style>
 </head>
-<body class="antialiased">
 
-    <header id="header" class="bg-white/80 backdrop-blur-md sticky top-0 z-40 shadow-sm">
-        <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
-            <a href="#" class="flex items-center space-x-2"> <img src="Logo_BABA.png" alt="Logo BABA Parfume" class="h-16 w-auto"> <span class="text-2xl font-bold text-charcoal tracking-wider">BABA PARFUME KPS<span class="text-gold">.</span></span>
-			</a>
-            <div class="hidden md:flex items-center space-x-8">
-                <a href="#beranda" class="text-gray-600 hover:text-gold transition-colors">Beranda</a>
-                <a href="#katalog" class="text-gray-600 hover:text-gold transition-colors">Katalog</a>
-                <a href="#tentang" class="text-gray-600 hover:text-gold transition-colors">Tentang</a>
-                <a class='font-semibold text-gold hover:text-amber-500 transition-colors' href='/resseler'>Reseller</a>
-                <a href="#kontak" class="text-gray-600 hover:text-gold transition-colors">Kontak</a>
+<body x-data="babaStore()" x-init="initData()" class="pb-28 text-gray-800" :class="isDetailModalOpen || isCartOpen || isConfirmModalOpen ? 'overflow-hidden' : ''">
+
+    <header class="glass-effect px-5 pt-6 pb-4 rounded-b-[2rem] shadow-[0_8px_30px_-15px_rgba(0,0,0,0.05)] sticky top-0 z-30 border-b border-white/50">
+        <div class="flex justify-between items-center">
+            <div class="animate-fade-in-up">
+                <h1 class="text-2xl font-black tracking-tight text-gray-900">Halo, <span x-text="checkoutForm.fullName || 'Kak'" class="text-yellow-600"></span>! ✨</h1>
+                <p class="text-[11px] text-gray-500 font-semibold mt-1 tracking-wide uppercase">Siap cari wangi signature kamu?</p>
             </div>
-            <div class="flex items-center space-x-4">
-                 <button id="cart-button" class="text-gray-600 hover:text-gold transition-colors relative">
-                    <i data-lucide="shopping-cart" class="w-6 h-6"></i>
-                    <span id="cart-count" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center opacity-0 transition-opacity">0</span>
-                </button>
-                 <a href="https://wa.me/628972996650" target="_blank" class="text-gray-600 hover:text-green-500 transition-colors">
-                    <i data-lucide="message-circle" class="w-6 h-6"></i>
-                </a>
-                <a href="https://t.me/babaparfume_bot" target="_blank" class="text-gray-600 hover:text-blue-500 transition-colors">
-                    <i data-lucide="send" class="w-6 h-6"></i>
-                </a>
-                <button id="mobile-menu-button" class="md:hidden text-gray-600">
-                    <i data-lucide="menu" class="w-6 h-6"></i>
-                </button>
+            
+            <div class="relative shadow-lg rounded-full animate-fade-in-up" style="animation-delay: 0.1s;">
+                <template x-if="tgUser.photo_url">
+                    <img :src="tgUser.photo_url" class="w-12 h-12 rounded-full border-[3px] border-white shadow-sm object-cover">
+                </template>
+                <template x-if="!tgUser.photo_url">
+                    <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-gray-900 to-gray-700 text-yellow-400 flex items-center justify-center font-bold text-xl border-[3px] border-white shadow-sm" x-text="(checkoutForm.fullName || 'B').charAt(0).toUpperCase()"></div>
+                </template>
+                <span class="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full"></span>
             </div>
-        </nav>
-         <div id="mobile-menu" class="hidden md:hidden px-6 pb-4 flex flex-col space-y-2">
-            <a href="#beranda" class="text-gray-600 hover:text-gold transition-colors py-2">Beranda</a>
-            <a href="#katalog" class="text-gray-600 hover:text-gold transition-colors py-2">Katalog</a>
-            <a href="#tentang" class="text-gray-600 hover:text-gold transition-colors py-2">Tentang</a>
-            <a class='font-semibold text-gold hover:text-amber-500 transition-colors py-2' href='/resseler'>Reseller</a>
-            <a href="#kontak" class="text-gray-600 hover:text-gold transition-colors py-2">Kontak</a>
+        </div>
+
+        <div class="mt-5 relative animate-fade-in-up" style="animation-delay: 0.2s;">
+            <i data-lucide="search" class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5"></i>
+            <input type="text" x-model="searchQuery" placeholder="Cari varian BABA favoritmu..." class="w-full bg-gray-100/80 text-sm font-medium pl-12 pr-4 py-3.5 rounded-2xl border border-transparent focus:border-yellow-400 focus:ring-4 focus:ring-yellow-400/20 focus:bg-white transition-all outline-none">
         </div>
     </header>
 
-    <main>
-        <section id="beranda" class="hero-section text-white flex items-center">
-            <div class="container mx-auto px-6 text-left">
-                <div class="w-full md:w-3/5 lg:w-1/2">
-                    <h1 class="text-4xl md:text-6xl font-extrabold leading-tight mb-4">
-                        BABA Parfume — <br>Wangi yang Bikin Lo Jadi <span class="text-amber-300">Trademark</span>.
-                    </h1>
-                    <p class="text-lg md:text-xl text-gray-200 mb-8 max-w-lg">
-                        Koleksi aroma premium yang diracik untuk menonjolkan karakter unikmu. Tahan lama, berkualitas, dan tak terlupakan.
-                    </p>
-                    <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
-                        <a href="#katalog" class="bg-gold hover:bg-amber-500 text-charcoal font-bold py-3 px-8 rounded-lg transition-transform transform hover:scale-105 inline-block text-center">
-                            Lihat Katalog
-                        </a>
-                        <a href="https://t.me/babaparfume_bot" target="_blank" class="bg-transparent border-2 border-white hover:bg-white hover:text-charcoal font-bold py-3 px-8 rounded-lg transition-colors inline-block text-center">
-                            Chat via Telegram
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section id="keunggulan" class="py-20 bg-white">
-            <div class="container mx-auto px-6">
-                <div class="text-center mb-12">
-                     <h2 class="text-3xl md:text-4xl font-bold text-charcoal">Kenapa BABA Parfume?</h2>
-                     <p class="text-gray-500 mt-2">Solusi untuk kamu wangi sepanjang hari.</p>
-                </div>
-                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8 text-center">
-                    <div class="flex flex-col items-center">
-                        <div class="bg-amber-100 p-4 rounded-full mb-3"><i data-lucide="award" class="w-8 h-8 text-gold"></i></div>
-                        <h3 class="font-semibold">Halal MUI</h3>
-                    </div>
-                    <div class="flex flex-col items-center">
-                        <div class="bg-amber-100 p-4 rounded-full mb-3"><i data-lucide="shield-check" class="w-8 h-8 text-gold"></i></div>
-                        <h3 class="font-semibold">Terdaftar BPOM</h3>
-                    </div>
-                    <div class="flex flex-col items-center">
-                         <div class="bg-amber-100 p-4 rounded-full mb-3"><i data-lucide="flask-conical" class="w-8 h-8 text-gold"></i></div>
-                        <h3 class="font-semibold">Eau de Parfume</h3>
-                    </div>
-                    <div class="flex flex-col items-center">
-                        <div class="bg-amber-100 p-4 rounded-full mb-3"><i data-lucide="leaf" class="w-8 h-8 text-gold"></i></div>
-                        <h3 class="font-semibold">Bibit Impor</h3>
-                    </div>
-                    <div class="flex flex-col items-center">
-                         <div class="bg-amber-100 p-4 rounded-full mb-3"><i data-lucide="rocket" class="w-8 h-8 text-gold"></i></div>
-                        <h3 class="font-semibold">Turbo Expert</h3>
-                    </div>
-                    <div class="flex flex-col items-center">
-                         <div class="bg-amber-100 p-4 rounded-full mb-3"><i data-lucide="clock" class="w-8 h-8 text-gold"></i></div>
-                        <h3 class="font-semibold">Wangi Tahan Lama</h3>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-
-        <section id="katalog" class="py-20">
-            <div class="container mx-auto px-6">
-                <div class="text-center mb-12">
-                    <h2 class="text-3xl md:text-4xl font-bold text-charcoal">Jelajahi Koleksi Kami</h2>
-                    <p class="text-gray-500 mt-2">Temukan aroma yang paling mewakili dirimu.</p>
-                </div>
-
-                <div class="flex flex-wrap justify-center gap-2 md:gap-4 mb-10">
-                    <button class="filter-btn active" data-filter="semua">Semua</button>
-                    <button class="filter-btn" data-filter="Top Seller">Top Seller</button>
-                    <button class="filter-btn" data-filter="Man">Man</button>
-                    <button class="filter-btn" data-filter="Woman">Woman's</button>
-                    <button class="filter-btn" data-filter="netral">netral</button>
-                </div>
-                
-                <style>.filter-btn { padding: 0.5rem 1.5rem; border: 1px solid var(--charcoal); border-radius: 9999px; font-weight: 500; transition: all 0.2s; } .filter-btn:hover { background-color: #f0f0f0; }</style>
-
-
-                <div id="product-grid" class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
-                    </div>
-            </div>
-        </section>
+    <main class="px-5 mt-6">
         
-        <section id="tentang" class="py-20 bg-white">
-            <div class="container mx-auto px-6 flex flex-col md:flex-row items-center gap-12">
-                <div class="w-full md:w-1/2">
-                    <img src="https://placehold.co/600x400/1E2022/D4AF37?text=BABA+Parfume" alt="Tentang BABA Parfume" class="rounded-lg shadow-xl w-full">
-                </div>
-                <div class="w-full md:w-1/2">
-                    <h2 class="text-3xl md:text-4xl font-bold text-charcoal mb-4">Lebih dari Sekedar Wangi</h2>
-                    <p class="text-gray-600 mb-4 leading-relaxed">
-                        BABA Parfume lahir dari keyakinan bahwa wewangian adalah bentuk ekspresi diri yang paling personal. Kami berkomitmen untuk menyajikan parfum berkualitas tinggi dengan bibit impor pilihan yang tidak hanya tahan lama, tapi juga memiliki karakter yang kuat dan unik.
-                    </p>
-                    <p class="text-gray-600 leading-relaxed">
-                        Setiap botol adalah hasil riset dan racikan para ahli, memastikan setiap semprotan memberikan pengalaman yang tak terlupakan. Kami percaya, setiap orang berhak memiliki wangi signature yang membuat mereka percaya diri dan menjadi 'trademark'.
-                    </p>
-                </div>
+        <div class="bg-gray-900 rounded-[2rem] p-6 text-white relative overflow-hidden shadow-xl mb-6 animate-fade-in-up" style="animation-delay: 0.3s;">
+            <div class="absolute -right-10 -top-10 opacity-20">
+                <i data-lucide="sparkles" class="w-48 h-48 text-yellow-400"></i>
             </div>
-        </section>
-
-        <section id="reseller" class="py-20 bg-amber-50">
-            <div class="container mx-auto px-6 text-center">
-                <h2 class="text-3xl md:text-4xl font-bold text-charcoal mb-4">
-                    Gabung Jadi Keluarga BABA Parfume!
-                </h2>
-                <p class="text-gray-600 mb-8 max-w-2xl mx-auto">
-                    Punya passion di dunia wewangian dan ingin penghasilan tambahan? Jadilah bagian dari kesuksesan kami. Dapatkan harga spesial, support marketing, dan jadilah bos untuk dirimu sendiri.
-                </p>
-                <a class='bg-charcoal hover:bg-gray-800 text-white font-bold py-3 px-8 rounded-lg transition-transform transform hover:scale-105 inline-block' href='/resseler'>
-                    Lihat Peluang Reseller
-                </a>
-            </div>
-        </section>
-    </main>
-
-    <footer id="kontak" class="bg-charcoal text-white">
-        <div class="container mx-auto px-6 py-12">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div>
-                    <h3 class="text-xl font-bold mb-4">BABA<span class="text-gold">.</span> Parfume</h3>
-                    <p class="text-gray-400">Wangi yang bikin lo jadi trademark.</p>
-                    <div class="mt-4 flex space-x-4">
-                         <a href="https://wa.me/628972996650" target="_blank" class="text-gray-300 hover:text-green-400"><i data-lucide="message-circle" class="w-6 h-6"></i></a>
-                         <a href="https://t.me/babaparfume_bot" target="_blank" class="text-gray-300 hover:text-blue-400"><i data-lucide="send" class="w-6 h-6"></i></a>
-                         <a href="#" class="text-gray-300 hover:text-pink-400"><i data-lucide="instagram" class="w-6 h-6"></i></a>
+            <div class="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent z-0"></div>
+            
+            <div class="relative z-10">
+                <div class="flex items-center space-x-2 mb-2">
+                    <span class="bg-yellow-500 text-gray-900 text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest">Premium</span>
+                    <h2 class="font-black text-xl text-white tracking-wide">BABA Parfume</h2>
+                </div>
+                <p class="text-xs text-gray-300 mt-1 leading-relaxed pr-8 font-medium">Bukan sekadar wangi, ini adalah rasa percaya diri yang nemenin kamu seharian.</p>
+                
+                <button @click="showUSP = !showUSP" class="mt-5 text-[10px] font-bold bg-white/10 hover:bg-white/20 text-white px-4 py-2.5 rounded-full flex items-center transition-all backdrop-blur-md active:scale-95 border border-white/10">
+                    <span x-text="showUSP ? 'Tutup Info' : 'Kenapa BABA Parfume?'"></span>
+                    <i data-lucide="chevron-down" class="w-3.5 h-3.5 ml-2 transition-transform duration-300" :class="showUSP ? 'rotate-180' : ''"></i>
+                </button>
+                
+                <div x-show="showUSP" x-transition.opacity class="mt-4 pt-4 border-t border-gray-700/50 text-[11px] text-gray-300 space-y-3.5">
+                    <div class="flex items-start">
+                        <div class="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center mr-3 flex-shrink-0"><i data-lucide="shield-check" class="w-3.5 h-3.5 text-green-400"></i></div>
+                        <p class="mt-0.5"><strong class="text-white">Halal & BPOM:</strong> Aman di kulit dan nyaman dipakai beribadah kapan saja.</p>
+                    </div>
+                    <div class="flex items-start">
+                        <div class="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center mr-3 flex-shrink-0"><i data-lucide="droplet" class="w-3.5 h-3.5 text-blue-400"></i></div>
+                        <p class="mt-0.5"><strong class="text-white">Bibit Import Paris:</strong> Rasio sempurna 80% bibit asli & 20% Turbo Expert.</p>
+                    </div>
+                    <div class="flex items-start">
+                        <div class="w-6 h-6 rounded-full bg-yellow-500/20 flex items-center justify-center mr-3 flex-shrink-0"><i data-lucide="clock" class="w-3.5 h-3.5 text-yellow-400"></i></div>
+                        <p class="mt-0.5"><strong class="text-white">Tahan Lama:</strong> Wanginya awet banget buat nemenin aktivitas kamu.</p>
                     </div>
                 </div>
-                <div>
-                    <h3 class="text-lg font-semibold mb-4">Kontak & Layanan</h3>
-                    <ul class="space-y-2 text-gray-400">
-                        <li><i data-lucide="phone" class="inline w-4 h-4 mr-2 text-gold"></i> WhatsApp: +62 897-2996-650</li>
-                        <li><i data-lucide="send" class="inline w-4 h-4 mr-2 text-gold"></i> Telegram: @babaparfume_bot</li>
-                        <li><i data-lucide="clock" class="inline w-4 h-4 mr-2 text-gold"></i> Jam Operasional: 09:00 - 22:00 WIB</li>
-                        <li><i data-lucide="map-pin" class="inline w-4 h-4 mr-2 text-gold"></i> 12203 Street 801, Preah Sihanouk, Kamboja</li>
-                    </ul>
-                </div>
-                <div>
-                    <h3 class="text-lg font-semibold mb-4">Informasi</h3>
-                    <ul class="space-y-2 text-gray-400">
-                        <li><a href="#" class="hover:text-gold">Kebijakan Privasi</a></li>
-                        <li><a href="#" class="hover:text-gold">Info Pengiriman</a></li>
-                        <li><a href="#" class="hover:text-gold">Aturan Pengembalian</a></li>
-                        <li><a href="#" class="hover:text-gold">FAQ</a></li>
-                    </ul>
-                </div>
-            </div>
-            <div class="border-t border-gray-700 mt-8 pt-6 text-center text-gray-500">
-                <p>&copy; 2024 BABA Parfume. All Rights Reserved.</p>
             </div>
         </div>
-    </footer>
 
-    <div id="product-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 p-4 opacity-0 pointer-events-none">
-         <div class="modal-backdrop absolute inset-0" onclick="hideProductModal()"></div>
-         <div class="modal-content bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto relative flex flex-col md:flex-row">
-            </div>
-    </div>
-    
-    <div id="cart-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 p-4 opacity-0 pointer-events-none">
-         <div class="modal-backdrop absolute inset-0" onclick="hideCartModal()"></div>
-         <div class="modal-content bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto relative p-8">
-            <h2 class="text-3xl font-bold text-charcoal mb-6">Keranjang Belanja Anda</h2>
-            <button onclick="hideCartModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-800">
-                <i data-lucide="x" class="w-6 h-6"></i>
-            </button>
-            <div id="cart-items-container" class="space-y-4 mb-8">
+        <button onclick="alert('Mengarahkan ke Chat AI Ahli Parfum (Segera Hadir)')" class="w-full bg-gradient-to-r from-yellow-50 to-white border border-yellow-200 rounded-[1.5rem] p-4 mb-8 flex items-center justify-between transition-all shadow-[0_4px_15px_rgba(234,179,8,0.1)] active:scale-[0.98] animate-fade-in-up" style="animation-delay: 0.4s;">
+            <div class="flex items-center text-left">
+                <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mr-4 flex-shrink-0 border border-yellow-200 relative">
+                    <i data-lucide="bot" class="w-6 h-6 text-yellow-700"></i>
+                    <span class="absolute top-0 right-0 w-3 h-3 bg-red-500 border-2 border-white rounded-full animate-pulse"></span>
                 </div>
-            <div id="cart-summary" class="border-t pt-4">
-                <p class="text-xl font-bold flex justify-between">
-                    <span>Total Item:</span>
-                    <span id="cart-total-qty" class="text-gold">0</span>
-                </p>
-            </div>
-            
-            <form id="checkout-form" class="mt-8 pt-4 border-t" style="display: none;">
-                <h3 class="text-xl font-bold mb-4">Informasi Pengiriman</h3>
-                <div class="mb-4">
-                    <label for="checkout-name" class="block text-sm font-medium text-gray-700">Nama Anda</label>
-                    <input type="text" id="checkout-name" placeholder="Tulis nama lengkap Anda" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-gold focus:ring-gold sm:text-sm p-2 border" required>
-                </div>
-                 <div class="mb-6">
-                    <label for="checkout-address" class="block text-sm font-medium text-gray-700">Alamat Lengkap</label>
-                    <textarea id="checkout-address" rows="3" placeholder="Jalan, No. Rumah, RT/RW, Kelurahan, Kecamatan, Kota/Kab, Kode Pos" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-gold focus:ring-gold sm:text-sm p-2 border" required></textarea>
-                </div>
-
-                <div class="flex flex-col space-y-3">
-                    <button type="button" id="send-wa-checkout-btn" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center space-x-2">
-                        <i data-lucide="message-circle" class="w-5 h-5"></i>
-                        <span>Pesan Semua via WhatsApp</span>
-                    </button>
-                    <button type="button" id="send-tg-checkout-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center space-x-2">
-                         <i data-lucide="send" class="w-5 h-5"></i>
-                         <span>Pesan Semua via Telegram</span>
-                    </button>
-                </div>
-            </form>
-
-         </div>
-    </div>
-    <script>
-    // --- DATABASE PARFUM ---
-    const perfumes = [
-        // Top Seller
-        {
-            id: 1, name: "TOP 501", category: "Top Seller", tags: ["Man"],
-            tagline: "Bold. Signature. Unforgettable.",
-            description: "TOP 501 adalah aroma signature yang langsung nempel — perpaduan citrus segar dengan heart woody yang maskulin, cocok buat yang pengen wangi tahan lama dan karakter kuat. Ideal buat acara malam dan momen spesial.",
-            topNotes: ["Bergamot", "Grapefruit", "Lemon Zest"], heartNotes: ["Lavender", "Jasmine", "Geranium"], baseNotes: ["Cedarwood", "Vetiver", "Ambroxan"],
-            ketahanan: "8–12 jam (strong sillage)", rekomendasi: "Malam / formal / musim dingin atau sore yang sejuk.", image: "https://placehold.co/500x500/101010/D4AF37?text=TOP+501", originalPrice: 14, discountedPrice: 10
-        },
-        {
-            id: 2, name: "MEVA", category: "Top Seller", tags: ["Woman"],
-            tagline: "Elegan, tapi easy to wear.",
-            description: "Meva menonjolkan kesan lembut dan elegan — floral amber yang tidak over. Cocok buat sehari-hari maupun hangout.",
-            topNotes: ["Pear", "Orange Blossom"], heartNotes: ["Rose", "Iris"], baseNotes: ["Vanilla", "Musk", "Sandalwood"],
-            ketahanan: "6–9 jam", rekomendasi: "Siang & sore / casual to semi-formal.", image: "https://placehold.co/500x500/101010/D4AF37?text=MEVA", originalPrice: 14, discountedPrice: 10
-        },
-        {
-            id: 3, name: "REXTASE", category: "Top Seller", tags: ["Man"],
-            tagline: "Penuh karisma.",
-            description: "Rextase memadukan spicy-woody untuk memberi kesan kuat dan berwibawa. Cocok buat yang suka wangi tegas.",
-            topNotes: ["Pink Pepper", "Bergamot"], heartNotes: ["Nutmeg", "Leather Accord"], baseNotes: ["Oud", "Patchouli", "Tonka Bean"],
-            ketahanan: "10–14 jam", rekomendasi: "Malam / acara penting.", image: "https://placehold.co/500x500/101010/D4AF37?text=REXTASE", originalPrice: 14, discountedPrice: 10
-        },
-        {
-            id: 4, name: "RUBI RAINER", category: "Top Seller", tags: ["Woman"],
-            tagline: "Fresh floral yang menggoda.",
-            description: "Rubi Rainer adalah perpaduan sempurna antara buah merah yang manis dan bunga mawar yang klasik. Memberikan kesan ceria, feminin, dan romantis. Sempurna untuk kencan pertama atau hari-hari cerah.",
-            topNotes: ["Raspberry", "Litchi", "Bergamot"], heartNotes: ["Rose", "Peony", "Freesia"], baseNotes: ["White Musk", "Patchouli", "Cashmere Wood"],
-            ketahanan: "7–10 jam", rekomendasi: "Siang / musim semi & panas.", image: "https://placehold.co/500x500/101010/D4AF37?text=RUBI+RAINER", originalPrice: 14, discountedPrice: 10
-        },
-        {
-            id: 5, name: "OVIUM FRAGRANCE", category: "Top Seller", tags: ["netral"],
-            tagline: "Unik, modern, dan adiktif.",
-            description: "Ovium Fragrance menentang gender dengan aroma unik dari kopi dan vanila yang dihangatkan oleh white floral. Memberikan kesan misterius, hangat, dan sangat modern. Wangi yang bikin orang penasaran.",
-            topNotes: ["Black Coffee", "Pink Pepper", "Pear"], heartNotes: ["Jasmine", "Orange Blossom", "Licorice"], baseNotes: ["Vanilla", "Cedarwood", "Patchouli"],
-            ketahanan: "8–12 jam", rekomendasi: "Sore & Malam / hangout.", image: "https://placehold.co/500x500/101010/D4AF37?text=OVIUM", originalPrice: 14, discountedPrice: 10
-        },
-        {
-            id: 6, name: "B.OUTSIDE", category: "Top Seller", tags: ["netral"],
-            tagline: "Aroma alam bebas dalam botol.",
-            description: "B.Outside menangkap esensi petualangan dengan aroma citrus yang segar dan sentuhan marine accord. Cocok untuk jiwa bebas yang aktif dan energik. Memberikan sensasi segar seperti angin laut.",
-            topNotes: ["Grapefruit", "Sea Salt", "Mandarin"], heartNotes: ["Bay Leaf", "Jasmine", "Marine Accord"], baseNotes: ["Ambergris", "Oakmoss", "Guaiac Wood"],
-            ketahanan: "6–9 jam", rekomendasi: "Siang / aktivitas outdoor.", image: "https://placehold.co/500x500/101010/D4AF37?text=B.OUTSIDE", originalPrice: 14, discountedPrice: 10
-        },
-        {
-            id: 13, name: "XMOOD", category: "Top Seller", tags: ["Man"],
-            tagline: "Percaya diri & standout di segala situasi.",
-            description: "Aroma maskulin yang diracik buat ningkatin confidence lu. Wangi awalnya segar citrus + hint mint, masuk ke middle note woody & spicy yang elegan, terus ditutup sama base note amber dan musk yang tahan lama.",
-            topNotes: ["Citrus", "Mint"], heartNotes: ["Woody Notes", "Spicy Notes"], baseNotes: ["Amber", "Musk"],
-            ketahanan: "8-10 jam", rekomendasi: "Sehari-hari & acara malam.", image: "https://placehold.co/500x500/101010/D4AF37?text=XMOOD", originalPrice: 14, discountedPrice: 10
-        },
-        {
-            id: 14, name: "XPOST", category: "Top Seller", tags: ["Man", "netral"],
-            tagline: "Enerjik & sporty untuk aktivitas seharian.",
-            description: "Aroma energik & sporty, pas buat lu yang aktif seharian. Opening-nya fresh aquatic + green apple, di tengah ada sentuhan lavender & spicy herbs, lalu ditutup sama cedarwood & vanilla yang bikin kesan hangat tapi tetap segar.",
-            topNotes: ["Aquatic Notes", "Green Apple"], heartNotes: ["Lavender", "Spicy Herbs"], baseNotes: ["Cedarwood", "Vanilla"],
-            ketahanan: "7-9 jam", rekomendasi: "Kerja, nongkrong, atau olahraga.", image: "https://placehold.co/500x500/101010/D4AF37?text=XPOST", originalPrice: 14, discountedPrice: 10
-        },
-        // Man
-        {
-            id: 7, name: "BULGARI EXTRIME", category: "Man", tags: [],
-            tagline: "Modern classic masculinity.",
-            description: "Aroma klasik yang dimodernisasi untuk pria masa kini. Perpaduan citrus dan vetiver yang tajam memberikan kesan profesional dan berkelas.",
-            topNotes: ["Citrus", "Artemisia", "Pink Grapefruit"], heartNotes: ["Vetiver", "Cedar", "Cardamom"], baseNotes: ["Ambergris", "Musk", "Benzoin"],
-            ketahanan: "7–10 jam", rekomendasi: "Formal & kantor.", image: "https://placehold.co/500x500/101010/FFFFFF?text=BULGARI", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 8, name: "ARK MAN", category: "Man", tags: [],
-            tagline: "Enerjik dan bersih.",
-            description: "Wangi yang memberikan suntikan energi. Kombinasi apel hijau dan marine accord menciptakan aroma yang bersih, segar, dan sangat cocok untuk pria dinamis.",
-            topNotes: ["Lemon", "Green Apple", "Mint"], heartNotes: ["Marine Accord", "Lavender", "Tonka Bean"], baseNotes: ["White Musk", "Cedar", "Amberwood"],
-            ketahanan: "6–8 jam", rekomendasi: "Siang hari / musim panas.", image: "https://placehold.co/500x500/101010/FFFFFF?text=ARK+MAN", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 15, name: "AVNE", category: "Man", tags: [], tagline: "Clean, simple, versatile.",
-            description: "Avne adalah aroma simple yang wangi fresh dan clean. Nggak neko-neko, enak buat dipake sehari-hari. Kalau lo mau parfum yang aman diterima semua orang, Avne pilihan tepat.",
-            topNotes: ["Lemon", "Orange Zest"], heartNotes: ["Jasmine", "Neroli"], baseNotes: ["Musk", "Sandalwood"], ketahanan: "5–7 jam", rekomendasi: "Siang / casual", image: "https://placehold.co/500x500/101010/FFFFFF?text=AVNE", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 16, name: "BA MAN", category: "Man", tags: [], tagline: "Klasik maskulin.",
-            description: "BA Man membawa nuansa fougere klasik dengan sentuhan aromatic. Wangi old-school tapi tetap relevan. Pas buat lo yang suka aroma dewasa dan gentleman vibes.",
-            topNotes: ["Lavender", "Bergamot"], heartNotes: ["Geranium", "Clary Sage"], baseNotes: ["Oakmoss", "Amber", "Vetiver"], ketahanan: "7–10 jam", rekomendasi: "Malam / formal", image: "https://placehold.co/500x500/101010/FFFFFF?text=BA+MAN", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 17, name: "BLACK JACK", category: "Man", tags: [], tagline: "Dark & confident.",
-            description: "Black Jack punya kesan misterius, spicy, dan penuh percaya diri. Cocok buat yang suka aura strong. Bisa jadi signature scent buat malam hari.",
-            topNotes: ["Black Pepper", "Cardamom"], heartNotes: ["Leather", "Incense"], baseNotes: ["Patchouli", "Amber", "Tonka"], ketahanan: "8–12 jam", rekomendasi: "Malam", image: "https://placehold.co/500x500/101010/FFFFFF?text=BLACK+JACK", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 18, name: "BLUE SKY", category: "Man", tags: [], tagline: "Segar biru langit.",
-            description: "Blue Sky fresh aquatic, adem kayak udara pantai. Simple tapi bikin seger seharian. Aman banget buat daily use, terutama pas cuaca panas.",
-            topNotes: ["Lemon", "Melon"], heartNotes: ["Marine Accord", "Lavender"], baseNotes: ["White Musk", "Amber"], ketahanan: "6–8 jam", rekomendasi: "Siang / musim panas", image: "https://placehold.co/500x500/101010/FFFFFF?text=BLUE+SKY", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 19, name: "CH2 MAN", category: "Man", tags: [], tagline: "Casual sporty.",
-            description: "CH2 Man aroma segar sporty yang cocok buat anak muda. Ada sentuhan manis maskulin di mid note. Pas buat olahraga, nongkrong, atau casual hangout.",
-            topNotes: ["Grapefruit", "Mint"], heartNotes: ["Ginger", "Cardamom"], baseNotes: ["Vetiver", "Musk"], ketahanan: "6–9 jam", rekomendasi: "Siang", image: "https://placehold.co/500x500/101010/FFFFFF?text=CH2+MAN", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 20, name: "CRISDI SAUVAGE", category: "Man", tags: [], tagline: "Wild, fresh, magnetic.",
-            description: "Crisdi Sauvage itu versi liar — fresh spicy yang bikin aura lo magnetis. Cocok buat malem-malem atau first date.",
-            topNotes: ["Bergamot", "Pepper"], heartNotes: ["Lavender", "Sichuan Pepper"], baseNotes: ["Ambroxan", "Cedar"], ketahanan: "8–12 jam", rekomendasi: "Malam", image: "https://placehold.co/500x500/101010/FFFFFF?text=CRISDI+SAUVAGE", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 21, name: "GIOAR", category: "Man", tags: [], tagline: "Elegant marine.",
-            description: "Gioar punya karakter aquatic-woody, elegan tapi tetap fresh. Pas buat formal maupun casual.",
-            topNotes: ["Lime", "Lemon", "Bergamot"], heartNotes: ["Jasmine", "Violet Leaf"], baseNotes: ["Cedarwood", "Musk"], ketahanan: "7–10 jam", rekomendasi: "Siang & sore", image: "https://placehold.co/500x500/101010/FFFFFF?text=GIOAR", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 22, name: "HB xx", category: "Man", tags: [], tagline: "Enerjik & urban.",
-            description: "HB xx punya sentuhan citrus aromatic yang youthful banget. Cocok buat anak muda di kota. Dipake kerja, nongkrong, atau kencan santai tetep masuk.",
-            topNotes: ["Orange", "Grapefruit"], heartNotes: ["Geranium", "Lavender"], baseNotes: ["Amber", "Musk"], ketahanan: "6–8 jam", rekomendasi: "Siang", image: "https://placehold.co/500x500/101010/FFFFFF?text=HB+xx", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 23, name: "HUGO BOSS ENERGY", category: "Man", tags: [], tagline: "Powerful & sporty.",
-            description: "Hugo Boss Energy punya wangi citrus herbal yang energik, bikin fresh dan semangat seharian. Sangat cocok dipake pas kerja atau olahraga.",
-            topNotes: ["Lemon", "Grapefruit"], heartNotes: ["Mint", "Ginger"], baseNotes: ["Cedar", "Musk"], ketahanan: "7–9 jam", rekomendasi: "Siang / sporty", image: "https://placehold.co/500x500/101010/FFFFFF?text=HUGO+BOSS+ENERGY", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 24, name: "IMAGINATION", category: "Man", tags: [], tagline: "Light & creative.",
-            description: "Imagination punya aroma airy citrus-floral yang enteng tapi unik. Cocok buat yang suka simple tapi beda. Bikin mood fresh sepanjang hari.",
-            topNotes: ["Citrus", "Mandarin"], heartNotes: ["Jasmine", "Neroli"], baseNotes: ["Musk", "Woody Amber"], ketahanan: "5–7 jam", rekomendasi: "Siang", image: "https://placehold.co/500x500/101010/FFFFFF?text=IMAGINATION", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 25, name: "LACOST", category: "Man", tags: [], tagline: "Clean sporty chic.",
-            description: "Lacost itu fresh sporty dengan nuansa fruity-green. Cocok buat daily office atau hangout. Simple, versatile, nggak pernah salah.",
-            topNotes: ["Grapefruit", "Green Apple"], heartNotes: ["Jasmine", "Violet"], baseNotes: ["Cedarwood", "Musk"], ketahanan: "6–8 jam", rekomendasi: "Siang", image: "https://placehold.co/500x500/101010/FFFFFF?text=LACOST", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 26, name: "RGP GENTEL", category: "Man", tags: [], tagline: "Gentle & classy.",
-            description: "RGP Gentel adalah aroma smooth woody dengan sentuhan floral. Pas buat yang pengen tampil calm tapi tetap elegan.",
-            topNotes: ["Bergamot", "Lemon"], heartNotes: ["Violet Leaf", "Lavender"], baseNotes: ["Sandalwood", "Amber"], ketahanan: "7–9 jam", rekomendasi: "Malam santai", image: "https://placehold.co/500x500/101010/FFFFFF?text=RGP+GENTEL", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 27, name: "SILVER", category: "Man", tags: [], tagline: "Cool metallic fresh.",
-            description: "Silver punya aroma clean-mineral yang unik, kayak dingin logam. Fresh tapi classy. Cocok buat anak muda yang pengen tampil beda.",
-            topNotes: ["Citrus", "Mint"], heartNotes: ["Violet Leaf", "Iris"], baseNotes: ["Musk", "Vetiver"], ketahanan: "6–8 jam", rekomendasi: "Siang", image: "https://placehold.co/500x500/101010/FFFFFF?text=SILVER", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 28, name: "SUPER STAR", category: "Man", tags: [], tagline: "Bright & confident.",
-            description: "Super Star wangi citrus fruity yang ceria, cocok buat vibe percaya diri. Pas dipake pas performance atau acara ramai.",
-            topNotes: ["Orange", "Pineapple"], heartNotes: ["Rose", "Jasmine"], baseNotes: ["Amber", "Musk"], ketahanan: "6–9 jam", rekomendasi: "Siang & sore", image: "https://placehold.co/500x500/101010/FFFFFF?text=SUPER+STAR", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 29, name: "V MAN", category: "Man", tags: [], tagline: "Strong & stylish.",
-            description: "V Man bawa aroma woody spicy yang manly abis. Cocok buat lo yang suka tampil bold dan karismatik.",
-            topNotes: ["Bergamot", "Pepper"], heartNotes: ["Lavender", "Cardamom"], baseNotes: ["Vetiver", "Tonka Bean"], ketahanan: "8–12 jam", rekomendasi: "Malam", image: "https://placehold.co/500x500/101010/FFFFFF?text=V+MAN", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 30, name: "X MAN", category: "Man", tags: [], tagline: "Fresh & mysterious.",
-            description: "X Man fresh di awal tapi makin lama makin dark woody. Bikin kesan misterius yang gampang bikin penasaran.",
-            topNotes: ["Grapefruit", "Mint"], heartNotes: ["Lavender", "Spices"], baseNotes: ["Amber", "Musk", "Cedar"], ketahanan: "7–10 jam", rekomendasi: "Malam", image: "https://placehold.co/500x500/101010/FFFFFF?text=X+MAN", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 31, name: "ZA MAN", category: "Man", tags: [], tagline: "Classic oriental.",
-            description: "ZA Man punya aroma oriental woody yang mature banget. Pas buat yang pengen tampil lebih dewasa dan berkelas.",
-            topNotes: ["Bergamot", "Lemon"], heartNotes: ["Cinnamon", "Cardamom"], baseNotes: ["Amber", "Sandalwood", "Tonka"], ketahanan: "8–12 jam", rekomendasi: "Malam / formal", image: "https://placehold.co/500x500/101010/FFFFFF?text=ZA+MAN", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 32, name: "FULL MAN", category: "Man", tags: [], tagline: "Intense & long-lasting.",
-            description: "Full Man hadir dengan campuran woody spicy yang nendang banget. Bikin kesan gagah seharian.",
-            topNotes: ["Pepper", "Bergamot"], heartNotes: ["Lavender", "Geranium"], baseNotes: ["Vetiver", "Cedarwood", "Amber"], ketahanan: "10–14 jam", rekomendasi: "Malam / formal", image: "https://placehold.co/500x500/101010/FFFFFF?text=FULL+MAN", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 33, name: "JL STILL", category: "Man", tags: [], tagline: "Smooth elegance.",
-            description: "JL Still adalah aroma smooth citrus-floral dengan sentuhan woody lembut. Cocok buat daily formal maupun casual.",
-            topNotes: ["Orange Blossom", "Lemon"], heartNotes: ["Jasmine", "Violet"], baseNotes: ["Sandalwood", "Musk"], ketahanan: "6–8 jam", rekomendasi: "Siang", image: "https://placehold.co/500x500/101010/FFFFFF?text=JL+STILL", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 34, name: "BLUE ART", category: "Man", tags: [], tagline: "Aquatic & stylish.",
-            description: "Blue Art bawa kesan fresh laut yang modern, clean dan stylish. Pas buat nongkrong atau kerjaan santai.",
-            topNotes: ["Bergamot", "Melon"], heartNotes: ["Lavender", "Marine Accord"], baseNotes: ["Amber", "Musk"], ketahanan: "6–8 jam", rekomendasi: "Siang / panas", image: "https://placehold.co/500x500/101010/FFFFFF?text=BLUE+ART", originalPrice: 12, discountedPrice: 10
-        },
-        // Woman's
-        {
-            id: 9, name: "BA JASMIN", category: "Woman", tags: [],
-            tagline: "Feminin, manis, natural.",
-            description: "Keharuman bunga melati yang dominan memberikan kesan sangat feminin dan natural. Diperkaya dengan sentuhan manis dari vanilla yang membuatnya hangat dan memorable.",
-            topNotes: ["Neroli", "Mandarin", "Gardenia"], heartNotes: ["Jasmine", "Ylang-Ylang", "Tuberose"], baseNotes: ["Vanilla", "Musk", "Sandalwood"],
-            ketahanan: "6–9 jam", rekomendasi: "Siang, romantic.", image: "https://placehold.co/500x500/101010/FFFFFF?text=BA+JASMIN", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 10, name: "SWEET LADY", category: "Woman", tags: [],
-            tagline: "Cute & cozy.",
-            description: "Aroma manis dari buah-buahan seperti strawberry dan peach yang berpadu dengan kelembutan bunga peony. Memberikan kesan ceria, muda, dan menggemaskan. Cocok untuk suasana santai.",
-            topNotes: ["Strawberry", "Peach", "Red Apple"], heartNotes: ["Rose", "Peony", "Jasmine"], baseNotes: ["Vanilla", "Creamy Musk", "Amber"],
-            ketahanan: "5–8 jam", rekomendasi: "Santai, kencan, siang.", image: "https://placehold.co/500x500/101010/FFFFFF?text=SWEET+LADY", originalPrice: 12, discountedPrice: 10
-        },
-        // netral
-        {
-            id: 11, name: "ALPHA ORI", category: "netral", tags: ["Man"],
-            tagline: "Fresh unisex, aman dipakai siapa aja.",
-            description: "Aroma bersih dan menenangkan dari teh hijau dan bergamot. Sangat versatile, cocok dipakai pria maupun wanita untuk aktivitas sehari-hari. Memberikan kesan rapi dan profesional.",
-            topNotes: ["Bergamot", "Green Tea", "Lemon"], heartNotes: ["Violet Leaf", "Lavender", "Cardamom"], baseNotes: ["Musk", "Cedar", "Sandalwood"],
-            ketahanan: "6–8 jam", rekomendasi: "Daily wear, office.", image: "https://placehold.co/500x500/101010/FFFFFF?text=ALPHA+ORI", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 12, name: "BLACK IN", category: "netral", tags: [],
-            tagline: "Smoky & mysterious.",
-            description: "Wangi yang gelap dan misterius. Kombinasi lada hitam, dupa, dan sentuhan kulit menciptakan aroma yang bold dan tidak biasa. Untuk mereka yang berani tampil beda.",
-            topNotes: ["Black Pepper", "Cardamom", "Saffron"], heartNotes: ["Incense", "Leather", "Labdanum"], baseNotes: ["Oud", "Amber", "Vetiver"],
-            ketahanan: "9–13 jam", rekomendasi: "Malam, acara spesial.", image: "https://placehold.co/500x500/101010/FFFFFF?text=BLACK+IN", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 35, name: "ARANDE", category: "Woman", tags: [],
-            tagline: "Fresh fruity elegance.",
-            description: "Aroma fruity floral dengan sentuhan anggur dan buah berry yang segar, berpadu dengan bunga mawar. Cocok buat yang mau tampil anggun tapi tetap ceria.",
-            topNotes: ["Grapes", "Berry Mix", "Mandarin"], heartNotes: ["Rose", "Peony"], baseNotes: ["Musk", "Amber"],
-            ketahanan: "5–7 jam", rekomendasi: "Aktivitas siang & casual.", image: "https://placehold.co/500x500/101010/FFFFFF?text=ARANDE", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 36, name: "SWEET BALE", category: "Woman", tags: [],
-            tagline: "Sweet & soft.",
-            description: "Wangi manis daun pandan bercampur dengan vanilla yang lembut. Memberikan kesan sederhana namun menenangkan.",
-            topNotes: ["Pandan Leaf", "Citrus"], heartNotes: ["Vanilla Orchid"], baseNotes: ["Soft Musk", "Amber"],
-            ketahanan: "4–6 jam", rekomendasi: "Santai di rumah atau kumpul sore.", image: "https://placehold.co/500x500/101010/FFFFFF?text=SWEET+BALE", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 37, name: "ZO DAUN", category: "Woman", tags: [],
-            tagline: "Natural green freshness.",
-            description: "Aroma herbal daun segar bercampur bunga ringan, memberi kesan natural, fresh, dan simpel.",
-            topNotes: ["Green Leaf", "Lime"], heartNotes: ["Jasmine", "Cyclamen"], baseNotes: ["White Musk"],
-            ketahanan: "5–7 jam", rekomendasi: "Cocok untuk outdoor, siang hari.", image: "https://placehold.co/500x500/101010/FFFFFF?text=ZO+DAUN", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 38, name: "SECRET SCENT", category: "Woman", tags: [],
-            tagline: "Misterius & menggoda.",
-            description: "Perpaduan buah gelap, bunga elegan, dan vanilla yang hangat menciptakan aura misterius dan memikat.",
-            topNotes: ["Blackcurrant", "Plum"], heartNotes: ["Rose", "Iris"], baseNotes: ["Vanilla", "Patchouli"],
-            ketahanan: "7–10 jam", rekomendasi: "Malam, acara formal, kencan.", image: "https://placehold.co/500x500/101010/FFFFFF?text=SECRET+SCENT", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 39, name: "KISS & ROSES", category: "Woman", tags: [],
-            tagline: "Romantic floral touch.",
-            description: "Didominasi wangi bunga mawar merah segar yang dipermanis dengan sentuhan fruity. Memberikan kesan romantis dan hangat.",
-            topNotes: ["Red Apple", "Raspberry"], heartNotes: ["Rose", "Peony"], baseNotes: ["Musk", "Amber"],
-            ketahanan: "6–8 jam", rekomendasi: "Kencan, dinner romantis.", image: "https://placehold.co/500x500/101010/FFFFFF?text=KISS+%26+ROSES", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 40, name: "VS SCRET", category: "Woman", tags: [],
-            tagline: "Glamour & sexy.",
-            description: "Kombinasi buah tropis dengan floral exotic memberi kesan glamor khas Victoria’s Secret.",
-            topNotes: ["Passionfruit", "Mango"], heartNotes: ["Peony", "Freesia"], baseNotes: ["Amber", "Vanilla"],
-            ketahanan: "5–8 jam", rekomendasi: "Hangout malam, clubbing.", image: "https://placehold.co/500x500/101010/FFFFFF?text=VS+SCRET", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 41, name: "KISS ME", category: "Woman", tags: [],
-            tagline: "Sweet romantic vibes.",
-            description: "Aroma fruity manis dengan bunga mawar putih yang segar, memberi kesan playful namun romantis.",
-            topNotes: ["Strawberry", "Peach"], heartNotes: ["White Rose", "Lily"], baseNotes: ["Vanilla", "Soft Musk"],
-            ketahanan: "4–6 jam", rekomendasi: "Cocok untuk kencan siang.", image: "https://placehold.co/500x500/101010/FFFFFF?text=KISS+ME", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 42, name: "ESCARRY", category: "Woman", tags: [],
-            tagline: "Bold & confident.",
-            description: "Wangi oriental floral dengan sentuhan spicy ringan, cocok untuk wanita yang percaya diri.",
-            topNotes: ["Orange", "Spicy Pepper"], heartNotes: ["Jasmine", "Rose"], baseNotes: ["Patchouli", "Musk"],
-            ketahanan: "6–9 jam", rekomendasi: "Kerja, meeting penting.", image: "https://placehold.co/500x500/101010/FFFFFF?text=ESCARRY", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 43, name: "G FLORA", category: "Woman", tags: [],
-            tagline: "Luxury floral chic.",
-            description: "Dominasi bunga elegan dengan sentuhan citrus yang segar. Memberi kesan mewah dan feminin.",
-            topNotes: ["Citrus", "Mandarin"], heartNotes: ["Peony", "Magnolia", "Rose"], baseNotes: ["Amber", "Sandalwood"],
-            ketahanan: "6–9 jam", rekomendasi: "Formal & acara spesial.", image: "https://placehold.co/500x500/101010/FFFFFF?text=G+FLORA", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 44, name: "WINTER", category: "Woman", tags: [],
-            tagline: "Cool & elegant.",
-            description: "Wangi segar bercampur dengan nuansa woody dan floral yang memberi aura dingin dan elegan.",
-            topNotes: ["Mint", "Citrus"], heartNotes: ["Lily", "Peony"], baseNotes: ["Cedarwood", "White Musk"],
-            ketahanan: "6–8 jam", rekomendasi: "Musim dingin atau malam hari.", image: "https://placehold.co/500x500/101010/FFFFFF?text=WINTER", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 45, name: "SASA", category: "Woman", tags: [],
-            tagline: "Soft & girly.",
-            description: "Kombinasi fruity-floral lembut dengan vanilla manis. Memberikan kesan imut, ceria, dan ramah.",
-            topNotes: ["Peach", "Lychee"], heartNotes: ["Jasmine", "Rose"], baseNotes: ["Vanilla", "Soft Musk"],
-            ketahanan: "4–6 jam", rekomendasi: "Sekolah, kuliah, hangout siang.", image: "https://placehold.co/500x500/101010/FFFFFF?text=SASA", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 46, name: "HANNA CODE", category: "Woman", tags: [],
-            tagline: "Modern & stylish.",
-            description: "Wangi floral dengan sentuhan fruity segar yang elegan. Memberi kesan trendy dan kekinian.",
-            topNotes: ["Pear", "Mandarin"], heartNotes: ["Peony", "Jasmine"], baseNotes: ["Cedarwood", "Musk"],
-            ketahanan: "5–7 jam", rekomendasi: "Daily use, casual.", image: "https://placehold.co/500x500/101010/FFFFFF?text=HANNA+CODE", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 47, name: "BA OMNIA", category: "Woman", tags: [],
-            tagline: "Exotic & radiant.",
-            description: "Aroma khas floral oriental dengan nuansa kayu putih. Memberikan kesan anggun dan radiant.",
-            topNotes: ["Citrus", "Lotus"], heartNotes: ["Iris", "Rose"], baseNotes: ["Sandalwood", "Musk"],
-            ketahanan: "6–9 jam", rekomendasi: "Acara malam atau pesta.", image: "https://placehold.co/500x500/101010/FFFFFF?text=BA+OMNIA", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 48, name: "SCANDAL", category: "Woman", tags: [],
-            tagline: "Feminine & bold.",
-            description: "Campuran madu manis dengan bunga gardenia dan orange blossom. Memberikan kesan menggoda dan berani.",
-            topNotes: ["Blood Orange", "Mandarin"], heartNotes: ["Gardenia", "Orange Blossom"], baseNotes: ["Honey", "Patchouli"],
-            ketahanan: "8–10 jam", rekomendasi: "Night out & special event.", image: "https://placehold.co/500x500/101010/FFFFFF?text=SCANDAL", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 49, name: "SELEGO", category: "Woman", tags: [],
-            tagline: "Sweet & trendy.",
-            description: "Wangi manis fruity floral yang fun dan kekinian. Memberikan kesan playful & modern.",
-            topNotes: ["Strawberry", "Pear"], heartNotes: ["Peony", "Jasmine"], baseNotes: ["Musk", "Vanilla"],
-            ketahanan: "5–7 jam", rekomendasi: "Hangout, casual daily.", image: "https://placehold.co/500x500/101010/FFFFFF?text=SELEGO", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 50, name: "ZA LOVE", category: "Woman", tags: [],
-            tagline: "Romantic & sweet.",
-            description: "Aroma floral lembut dengan sentuhan fruity yang manis. Memberikan kesan romantis & youthful.",
-            topNotes: ["Peach", "Mandarin"], heartNotes: ["Rose", "Lily"], baseNotes: ["Amber", "Musk"],
-            ketahanan: "5–7 jam", rekomendasi: "Kencan atau hangout santai.", image: "https://placehold.co/500x500/101010/FFFFFF?text=ZA+LOVE", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 51, name: "DETECTIVE", category: "Woman", tags: [],
-            tagline: "Unique & mysterious.",
-            description: "Kombinasi citrus segar dengan spicy-floral yang bikin aura misterius & unik.",
-            topNotes: ["Lemon", "Pepper"], heartNotes: ["Rose", "Jasmine"], baseNotes: ["Cedarwood", "Musk"],
-            ketahanan: "6–8 jam", rekomendasi: "Event malam, formal.", image: "https://placehold.co/500x500/101010/FFFFFF?text=DETECTIVE", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 52, name: "XMOON", category: "Woman", tags: [],
-            tagline: "Dreamy & soft.",
-            description: "Wangi lembut floral fruity dengan nuansa powdery yang bikin kesan dreamy dan nyaman.",
-            topNotes: ["Lychee", "Apple"], heartNotes: ["Rose", "Peony"], baseNotes: ["Powdery Musk", "Vanilla"],
-            ketahanan: "5–7 jam", rekomendasi: "Santai sore, tidur malam.", image: "https://placehold.co/500x500/101010/FFFFFF?text=XMOON", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 53, name: "B LONDON", category: "Woman", tags: [],
-            tagline: "Urban chic.",
-            description: "Aroma elegan bergaya kota besar, fruity floral dengan sentuhan woody modern.",
-            topNotes: ["Pear", "Peach"], heartNotes: ["Rose", "Violet"], baseNotes: ["Cedarwood", "Amber"],
-            ketahanan: "6–8 jam", rekomendasi: "Kerja atau jalan di kota.", image: "https://placehold.co/500x500/101010/FFFFFF?text=B+LONDON", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 54, name: "BRITNEY SPEARS", category: "Woman", tags: [],
-            tagline: "Pop & playful.",
-            description: "Wangi manis fruity gourmand khas selebriti, playful dan fun.",
-            topNotes: ["Kiwi", "Lychee"], heartNotes: ["Jasmine", "Cupcake Accord"], baseNotes: ["Musk", "Amber"],
-            ketahanan: "5–7 jam", rekomendasi: "Hangout & pesta kasual.", image: "https://placehold.co/500x500/101010/FFFFFF?text=BRITNEY+SPEARS", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 55, name: "BB PINK", category: "Woman", tags: [],
-            tagline: "Cute & girly.",
-            description: "Aroma fruity floral pinky yang imut & ceria. Cocok buat cewek aktif.",
-            topNotes: ["Strawberry", "Raspberry"], heartNotes: ["Peony", "Rose"], baseNotes: ["Musk", "Vanilla"],
-            ketahanan: "4–6 jam", rekomendasi: "Daily casual.", image: "https://placehold.co/500x500/101010/FFFFFF?text=BB+PINK", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 56, name: "VS SO SEXY", category: "Woman", tags: [],
-            tagline: "Sexy & glamorous.",
-            description: "Perpaduan citrus, vanilla, dan floral exotic yang menggoda khas Victoria’s Secret.",
-            topNotes: ["Bergamot", "Mandarin"], heartNotes: ["Orchid", "Freesia"], baseNotes: ["Vanilla", "Amber"],
-            ketahanan: "6–8 jam", rekomendasi: "Party malam, special event.", image: "https://placehold.co/500x500/101010/FFFFFF?text=VS+SO+SEXY", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 57, name: "MODERN L", category: "Woman", tags: [],
-            tagline: "Elegant & modern.",
-            description: "Wangi floral woody musk yang anggun dan kontemporer. Cocok untuk wanita modern.",
-            topNotes: ["Lemon", "Pear"], heartNotes: ["Jasmine", "Rose"], baseNotes: ["Cedarwood", "Musk"],
-            ketahanan: "6–9 jam", rekomendasi: "Kerja & acara formal.", image: "https://placehold.co/500x500/101010/FFFFFF?text=MODERN+L", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 58, name: "MIKA PINK", category: "Woman", tags: [],
-            tagline: "Playful sweet.",
-            description: "Perpaduan fruity floral manis dengan sentuhan creamy vanilla. Bikin suasana jadi ceria & playful.",
-            topNotes: ["Peach", "Raspberry"], heartNotes: ["Jasmine", "Rose"], baseNotes: ["Vanilla", "Musk"],
-            ketahanan: "4–6 jam", rekomendasi: "Casual & kencan siang.", image: "https://placehold.co/500x500/101010/FFFFFF?text=MIKA+PINK", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 59, name: "LOVE ME", category: "Woman", tags: [],
-            tagline: "Soft romantic.",
-            description: "Aroma floral lembut dengan sentuhan buah segar, memberi kesan romantis dan lembut.",
-            topNotes: ["Mandarin", "Peach"], heartNotes: ["Rose", "Peony"], baseNotes: ["Amber", "Musk"],
-            ketahanan: "5–7 jam", rekomendasi: "Kencan, santai sore.", image: "https://placehold.co/500x500/101010/FFFFFF?text=LOVE+ME", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 60, name: "AZZURA", category: "netral", tags: [],
-            tagline: "Fresh & breezy.",
-            description: "Aroma segar dengan nuansa citrus laut yang ringan. Memberi kesan bersih, simple, dan sejuk.",
-            topNotes: ["Lemon", "Mandarin"], heartNotes: ["Marine Accord", "Lavender"], baseNotes: ["Musk", "Amber"],
-            ketahanan: "5–7 jam", rekomendasi: "Siang hari, aktivitas outdoor.", image: "https://placehold.co/500x500/101010/FFFFFF?text=AZZURA", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 61, name: "VANILA LACE", category: "netral", tags: [],
-            tagline: "Sweet & cozy.",
-            description: "Vanila manis yang creamy berpadu dengan musk halus. Memberikan kesan hangat, lembut, dan menenangkan.",
-            topNotes: ["Vanilla"], heartNotes: ["Creamy Accord"], baseNotes: ["White Musk", "Amber"],
-            ketahanan: "6–9 jam", rekomendasi: "Santai sore, malam santai.", image: "https://placehold.co/500x500/101010/FFFFFF?text=VANILA+LACE", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 62, name: "VANILA SUSU", category: "netral", tags: [],
-            tagline: "Milky sweet.",
-            description: "Aroma vanila berpadu dengan susu segar yang creamy, bikin kesan manis dan nyaman.",
-            topNotes: ["Milk Accord"], heartNotes: ["Vanilla Orchid"], baseNotes: ["Tonka Bean", "Musk"],
-            ketahanan: "4–6 jam", rekomendasi: "Cocok untuk daily casual.", image: "https://placehold.co/500x500/101010/FFFFFF?text=VANILA+SUSU", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 63, name: "DEBUT", category: "netral", tags: [],
-            tagline: "Fresh start.",
-            description: "Wangi floral fruity segar yang ringan, memberi kesan simple dan easy-going.",
-            topNotes: ["Citrus", "Peach"], heartNotes: ["Rose", "Peony"], baseNotes: ["Musk", "Amber"],
-            ketahanan: "5–7 jam", rekomendasi: "Cocok dipakai pagi & kerja.", image: "https://placehold.co/500x500/101010/FFFFFF?text=DEBUT", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 64, name: "VANILA", category: "netral", tags: [],
-            tagline: "Classic sweet.",
-            description: "Aroma vanila klasik yang manis dan timeless, cocok untuk semua suasana.",
-            topNotes: ["Vanilla"], heartNotes: ["Caramel"], baseNotes: ["Amber", "Musk"],
-            ketahanan: "6–8 jam", rekomendasi: "Santai & casual daily.", image: "https://placehold.co/500x500/101010/FFFFFF?text=VANILA", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 65, name: "SOFT", category: "netral", tags: [],
-            tagline: "Gentle & powdery.",
-            description: "Wangi lembut powdery dengan sentuhan manis floral. Memberikan kesan kalem dan bersih.",
-            topNotes: ["Aldehydes", "Lily"], heartNotes: ["Rose", "Powdery Accord"], baseNotes: ["Musk", "Vanilla"],
-            ketahanan: "5–7 jam", rekomendasi: "Sehari-hari, indoor.", image: "https://placehold.co/500x500/101010/FFFFFF?text=SOFT", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 66, name: "IMPERIAL", category: "netral", tags: [],
-            tagline: "Royal & classy.",
-            description: "Aroma woody oriental dengan sentuhan floral halus. Membawa aura elegan dan berkelas.",
-            topNotes: ["Bergamot", "Citrus"], heartNotes: ["Rose", "Iris"], baseNotes: ["Amber", "Sandalwood"],
-            ketahanan: "7–9 jam", rekomendasi: "Acara formal & kerja.", image: "https://placehold.co/500x500/101010/FFFFFF?text=IMPERIAL", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 67, name: "ISSEY MI", category: "netral", tags: [],
-            tagline: "Minimalist & fresh.",
-            description: "Nuansa air segar dan floral ringan memberi kesan simple tapi elegan.",
-            topNotes: ["Yuzu", "Lemon"], heartNotes: ["Lily", "Lotus"], baseNotes: ["Cedarwood", "Musk"],
-            ketahanan: "6–8 jam", rekomendasi: "Siang hari & kerja casual.", image: "https://placehold.co/500x500/101010/FFFFFF?text=ISSEY+MI", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 68, name: "COCO", category: "netral", tags: [],
-            tagline: "Sweet coconut vibes.",
-            description: "Aroma kelapa creamy dengan sentuhan vanila dan floral lembut. Memberikan kesan hangat & exotic.",
-            topNotes: ["Coconut", "Vanilla"], heartNotes: ["Jasmine"], baseNotes: ["Amber", "Musk"],
-            ketahanan: "5–7 jam", rekomendasi: "Santai pantai atau liburan.", image: "https://placehold.co/500x500/101010/FFFFFF?text=COCO", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 69, name: "EIFFEL", category: "netral", tags: [],
-            tagline: "Romantic & elegant.",
-            description: "Floral elegan dengan sentuhan fruity ringan, bikin aura romantis khas Paris.",
-            topNotes: ["Peach", "Mandarin"], heartNotes: ["Rose", "Iris"], baseNotes: ["Amber", "Musk"],
-            ketahanan: "6–8 jam", rekomendasi: "Kencan romantis malam.", image: "https://placehold.co/500x500/101010/FFFFFF?text=EIFFEL", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 70, name: "ZO BATANG", category: "netral", tags: [],
-            tagline: "Woody & bold.",
-            description: "Aroma khas kayu alami dengan nuansa earthy. Memberikan kesan maskulin tapi tetap netral.",
-            topNotes: ["Cedarwood"], heartNotes: ["Vetiver"], baseNotes: ["Amber", "Musk"],
-            ketahanan: "7–9 jam", rekomendasi: "Outdoor & casual malam.", image: "https://placehold.co/500x500/101010/FFFFFF?text=ZO+BATANG", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 71, name: "MELON", category: "netral", tags: [],
-            tagline: "Fruity & juicy.",
-            description: "Wangi buah melon yang segar dan juicy, ringan dan playful.",
-            topNotes: ["Melon", "Apple"], heartNotes: ["Peony", "Rose"], baseNotes: ["Musk"],
-            ketahanan: "4–6 jam", rekomendasi: "Siang casual & summer.", image: "https://placehold.co/500x500/101010/FFFFFF?text=MELON", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 72, name: "JO MELONE", category: "netral", tags: [],
-            tagline: "Luxury & fresh.",
-            description: "Inspirasi Jo Malone dengan aroma fruity floral mewah yang simple tapi elegan.",
-            topNotes: ["Pear", "Mandarin"], heartNotes: ["Freesia", "Rose"], baseNotes: ["Patchouli", "Amber"],
-            ketahanan: "6–9 jam", rekomendasi: "Formal & classy.", image: "https://placehold.co/500x500/101010/FFFFFF?text=JO+MELONE", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 73, name: "SUNMORI", category: "netral", tags: [],
-            tagline: "Fresh ride vibes.",
-            description: "Aroma segar citrus herbal cocok buat nemenin sunmori bareng temen. Simple & energic.",
-            topNotes: ["Lemon", "Bergamot"], heartNotes: ["Herbal Accord"], baseNotes: ["Musk"],
-            ketahanan: "4–6 jam", rekomendasi: "Outdoor, riding.", image: "https://placehold.co/500x500/101010/FFFFFF?text=SUNMORI", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 74, name: "LUX", category: "netral", tags: [],
-            tagline: "Soft & clean.",
-            description: "Wangi sabun elegan yang lembut, bersih, dan feminim. Simple tapi bikin fresh.",
-            topNotes: ["Citrus"], heartNotes: ["Floral Accord"], baseNotes: ["White Musk"],
-            ketahanan: "4–6 jam", rekomendasi: "Daily casual indoor.", image: "https://placehold.co/500x500/101010/FFFFFF?text=LUX", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 75, name: "JESICA PARKER", category: "netral", tags: [],
-            tagline: "Chic & feminine.",
-            description: "Aroma selebriti yang glamor tapi tetap feminim. Manis, floral, dan trendy.",
-            topNotes: ["Pear", "Apple"], heartNotes: ["Jasmine", "Rose"], baseNotes: ["Musk", "Vanilla"],
-            ketahanan: "6–8 jam", rekomendasi: "Party & kencan.", image: "https://placehold.co/500x500/101010/FFFFFF?text=JESICA+PARKER", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 76, name: "BUBBLEGUM", category: "netral", tags: [],
-            tagline: "Fun & playful.",
-            description: "Manis khas permen karet, cocok buat vibe ceria dan remaja.",
-            topNotes: ["Bubblegum Accord"], heartNotes: ["Strawberry", "Peach"], baseNotes: ["Vanilla", "Musk"],
-            ketahanan: "3–5 jam", rekomendasi: "Hangout casual, anak muda.", image: "https://placehold.co/500x500/101010/FFFFFF?text=BUBBLEGUM", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 77, name: "PC 1 MILION", category: "netral", tags: [],
-            tagline: "Bold & charismatic.",
-            description: "Terinspirasi dari 1 Million, wangi spicy woody yang mewah dan berkarakter.",
-            topNotes: ["Blood Mandarin", "Grapefruit"], heartNotes: ["Rose", "Cinnamon"], baseNotes: ["Leather", "Amber"],
-            ketahanan: "7–10 jam", rekomendasi: "Malam, acara penting.", image: "https://placehold.co/500x500/101010/FFFFFF?text=PC+1+MILION", originalPrice: 12, discountedPrice: 10
-        },
-        {
-            id: 78, name: "LIFE BOY", category: "netral", tags: [],
-            tagline: "Clean & simple.",
-            description: "Aroma sabun Lifebuoy klasik, fresh, simple, dan nostalgic.",
-            topNotes: ["Citrus"], heartNotes: ["Soap Accord"], baseNotes: ["White Musk"],
-            ketahanan: "3–5 jam", rekomendasi: "Daily casual, rumah.", image: "https://placehold.co/500x500/101010/FFFFFF?text=LIFE+BOY", originalPrice: 12, discountedPrice: 10
-        },
-{ id: 79, name: "VV MAN", category: "Man", tags: [], tagline: "Strong & confident.", description: "Aroma maskulin yang bold, modern, dan percaya diri.", topNotes: ["Bergamot", "Lemon"], heartNotes: ["Lavender", "Sage"], baseNotes: ["Cedarwood", "Amber"], ketahanan: "6–8 jam", rekomendasi: "Daily, kerja, hangout.", image: "https://placehold.co/500x500/101010/FFFFFF?text=VV+MAN", originalPrice: 12, discountedPrice: 10 },
-{ id: 80, name: "SAFETY MAN", category: "Man", tags: [], tagline: "Secure & reliable.", description: "Wangi laki-laki yang memberikan rasa aman, fresh tapi berkarakter.", topNotes: ["Mint", "Grapefruit"], heartNotes: ["Geranium", "Clary Sage"], baseNotes: ["Vetiver", "Musk"], ketahanan: "5–7 jam", rekomendasi: "Sehari-hari, kantor.", image: "https://placehold.co/500x500/101010/FFFFFF?text=SAFETY+MAN", originalPrice: 12, discountedPrice: 10 },
-{ id: 81, name: "ONE WAY", category: "Man", tags: [], tagline: "Adventurous & daring.", description: "Aroma maskulin untuk pria yang berani ambil risiko dan petualang.", topNotes: ["Ginger", "Lemon"], heartNotes: ["Jasmine", "Nutmeg"], baseNotes: ["Sandalwood", "Tonka Bean"], ketahanan: "6–9 jam", rekomendasi: "Malam, hangout.", image: "https://placehold.co/500x500/101010/FFFFFF?text=ONE+WAY", originalPrice: 12, discountedPrice: 10 },
-{ id: 82, name: "JG VIXION", category: "Man", tags: [], tagline: "Sporty & energetic.", description: "Aroma segar, maskulin, cocok untuk pria aktif dan energik.", topNotes: ["Citrus", "Peppermint"], heartNotes: ["Lavender", "Basil"], baseNotes: ["Musk", "Amber"], ketahanan: "5–7 jam", rekomendasi: "Daily, olahraga, hangout.", image: "https://placehold.co/500x500/101010/FFFFFF?text=JG+VIXION", originalPrice: 12, discountedPrice: 10 },
-{ id: 83, name: "MONTE BIANCO", category: "Man", tags: [], tagline: "Elegant & refined.", description: "Aroma premium, elegan, mewah untuk pria modern.", topNotes: ["Bergamot", "Blackcurrant"], heartNotes: ["Rose", "Nutmeg"], baseNotes: ["Cedarwood", "Vanilla"], ketahanan: "7–10 jam", rekomendasi: "Acara formal, malam.", image: "https://placehold.co/500x500/101010/FFFFFF?text=MONTE+BIANCO", originalPrice: 12, discountedPrice: 10 },
-{ id: 84, name: "MALB", category: "Man", tags: [], tagline: "Classic & strong.", description: "Wangi maskulin klasik, tegas, dan tahan lama.", topNotes: ["Lemon", "Pepper"], heartNotes: ["Jasmine", "Cinnamon"], baseNotes: ["Amber", "Musk"], ketahanan: "6–8 jam", rekomendasi: "Daily, kerja.", image: "https://placehold.co/500x500/101010/FFFFFF?text=MALB", originalPrice: 12, discountedPrice: 10 },
-{ id: 85, name: "L BLUE", category: "Man", tags: [], tagline: "Fresh & cool.", description: "Aroma segar, ringan, cocok untuk pria yang stylish dan casual.", topNotes: ["Bergamot", "Sea Notes"], heartNotes: ["Jasmine", "Marine Accord"], baseNotes: ["Musk", "Cedar"], ketahanan: "5–7 jam", rekomendasi: "Daily, hangout.", image: "https://placehold.co/500x500/101010/FFFFFF?text=L+BLUE", originalPrice: 12, discountedPrice: 10 },
-{ id: 86, name: "ITS ME", category: "Man", tags: [], tagline: "Confident & bold.", description: "Wangi untuk pria percaya diri, modern, dan berkarakter.", topNotes: ["Grapefruit", "Peppermint"], heartNotes: ["Lavender", "Sage"], baseNotes: ["Cedarwood", "Amber"], ketahanan: "6–8 jam", rekomendasi: "Malam, acara penting.", image: "https://placehold.co/500x500/101010/FFFFFF?text=ITS+ME", originalPrice: 12, discountedPrice: 10 },
-{ id: 87, name: "INTER MAN", category: "Man", tags: [], tagline: "Professional & suave.", description: "Aroma maskulin profesional, elegan, cocok untuk pria karier.", topNotes: ["Lemon", "Bergamot"], heartNotes: ["Lavender", "Geranium"], baseNotes: ["Vetiver", "Musk"], ketahanan: "7–9 jam", rekomendasi: "Kerja, meeting, formal.", image: "https://placehold.co/500x500/101010/FFFFFF?text=INTER+MAN", originalPrice: 12, discountedPrice: 10 },
-{ id: 88, name: "HUGO BOSS EGERGY", category: "Man", tags: [], tagline: "Energetic & fresh.", description: "Aroma segar dan energik untuk pria aktif dan dinamis.", topNotes: ["Bergamot", "Grapefruit"], heartNotes: ["Peppermint", "Lavender"], baseNotes: ["Cedarwood", "Musk"], ketahanan: "6–8 jam", rekomendasi: "Daily, olahraga, hangout.", image: "https://placehold.co/500x500/101010/FFFFFF?text=HUGO+BOSS+EGERGY", originalPrice: 12, discountedPrice: 10 },
-{ id: 89, name: "GOOD BOY", category: "Man", tags: [], tagline: "Friendly & approachable.", description: "Aroma maskulin ringan, hangat, mudah didekati.", topNotes: ["Citrus", "Apple"], heartNotes: ["Lavender", "Geranium"], baseNotes: ["Musk", "Amber"], ketahanan: "5–7 jam", rekomendasi: "Daily, santai, hangout.", image: "https://placehold.co/500x500/101010/FFFFFF?text=GOOD+BOY", originalPrice: 12, discountedPrice: 10 },
-{ id: 90, name: "HUGO BOSS ARMY", category: "Man", tags: [], tagline: "Strong & commanding.", description: "Aroma maskulin kuat, tegas, dan berwibawa.", topNotes: ["Pepper", "Bergamot"], heartNotes: ["Sage", "Lavender"], baseNotes: ["Vetiver", "Musk"], ketahanan: "7–9 jam", rekomendasi: "Malam, formal.", image: "https://placehold.co/500x500/101010/FFFFFF?text=HUGO+BOSS+ARMY", originalPrice: 12, discountedPrice: 10 },
-{ id: 91, name: "FROSS", category: "Man", tags: [], tagline: "Cool & refreshing.", description: "Aroma segar, dingin, cocok untuk pria modern.", topNotes: ["Mint", "Lemon"], heartNotes: ["Lavender", "Sage"], baseNotes: ["Cedarwood", "Amber"], ketahanan: "5–7 jam", rekomendasi: "Daily, hangout.", image: "https://placehold.co/500x500/101010/FFFFFF?text=FROSS", originalPrice: 12, discountedPrice: 10 },
-{ id: 92, name: "BANDERAS", category: "Man", tags: [], tagline: "Bold & daring.", description: "Wangi pria maskulin, berani, dan karismatik.", topNotes: ["Bergamot", "Pepper"], heartNotes: ["Jasmine", "Nutmeg"], baseNotes: ["Sandalwood", "Amber"], ketahanan: "6–8 jam", rekomendasi: "Malam, hangout.", image: "https://placehold.co/500x500/101010/FFFFFF?text=BANDERAS", originalPrice: 12, discountedPrice: 10 },
-{ id: 93, name: "ZO BALI", category: "netral", tags: [], tagline: "Tropical & relaxing.", description: "Aroma segar tropis yang ringan, cocok untuk semua suasana.", topNotes: ["Coconut", "Pineapple"], heartNotes: ["Jasmine", "Frangipani"], baseNotes: ["Sandalwood", "Vanilla"], ketahanan: "4–6 jam", rekomendasi: "Daily, santai, liburan.", image: "https://placehold.co/500x500/101010/FFFFFF?text=ZO+BALI", originalPrice: 12, discountedPrice: 10 },
-{ id: 94, name: "BARBAR LONA", category: "netral", tags: [], tagline: "Warm & sweet.", description: "Aroma manis hangat, cocok untuk suasana santai dan nyaman.", topNotes: ["Orange", "Cinnamon"], heartNotes: ["Vanilla", "Amber"], baseNotes: ["Musk", "Sandalwood"], ketahanan: "5–7 jam", rekomendasi: "Daily, malam, santai.", image: "https://placehold.co/500x500/101010/FFFFFF?text=BARBAR+LONA", originalPrice: 12, discountedPrice: 10 },
-{ id: 95, name: "BABA KAHVE", category: "netral", tags: [], tagline: "Coffee & cozy.", description: "Wangi kopi hangat yang manis dan nyaman, perfect untuk santai.", topNotes: ["Coffee", "Hazelnut"], heartNotes: ["Vanilla", "Caramel"], baseNotes: ["Musk", "Amber"], ketahanan: "6–8 jam", rekomendasi: "Daily, kerja, hangout.", image: "https://placehold.co/500x500/101010/FFFFFF?text=BABA+KAHVE", originalPrice: 12, discountedPrice: 10 },
-{ id: 96, name: "BABY FACE", category: "netral", tags: [], tagline: "Soft & innocent.", description: "Aroma lembut dan bersih, fresh dan innocent.", topNotes: ["Peach", "Apple"], heartNotes: ["Rose", "Lily"], baseNotes: ["White Musk", "Amber"], ketahanan: "3–5 jam", rekomendasi: "Daily, rumah, casual.", image: "https://placehold.co/500x500/101010/FFFFFF?text=BABY+FACE", originalPrice: 12, discountedPrice: 10 },
-{ id: 97, name: "G RUSH", category: "netral", tags: [], tagline: "Energetic & vibrant.", description: "Aroma segar dan energik untuk semua kegiatan.", topNotes: ["Grapefruit", "Lemon"], heartNotes: ["Jasmine", "Mint"], baseNotes: ["Musk", "Cedar"], ketahanan: "5–7 jam", rekomendasi: "Daily, olahraga, hangout.", image: "https://placehold.co/500x500/101010/FFFFFF?text=G+RUSH", originalPrice: 12, discountedPrice: 10 },
-{ id: 98, name: "HESTER", category: "netral", tags: [], tagline: "Elegant & soft.", description: "Aroma lembut elegan, cocok untuk pria dan wanita.", topNotes: ["Lavender", "Bergamot"], heartNotes: ["Rose", "Geranium"], baseNotes: ["Musk", "Vanilla"], ketahanan: "5–8 jam", rekomendasi: "Daily, kantor, hangout.", image: "https://placehold.co/500x500/101010/FFFFFF?text=HESTER", originalPrice: 12, discountedPrice: 10 },
-{ id: 99, name: "MARIMAR", category: "netral", tags: [], tagline: "Fresh & fruity.", description: "Aroma buah segar yang ringan dan menyenangkan.", topNotes: ["Strawberry", "Apple"], heartNotes: ["Peach", "Jasmine"], baseNotes: ["Musk", "Cedarwood"], ketahanan: "4–6 jam", rekomendasi: "Daily, santai, rumah.", image: "https://placehold.co/500x500/101010/FFFFFF?text=MARIMAR", originalPrice: 12, discountedPrice: 10 },
-{ id: 100, name: "SILVER SOFT", category: "netral", tags: [], tagline: "Clean & modern.", description: "Aroma bersih, fresh, cocok untuk pria dan wanita modern.", topNotes: ["Citrus", "Aldehyde"], heartNotes: ["Jasmine", "Muguet"], baseNotes: ["White Musk", "Amber"], ketahanan: "5–7 jam", rekomendasi: "Daily, kantor, hangout.", image: "https://placehold.co/500x500/101010/FFFFFF?text=SILVER+SOFT", originalPrice: 12, discountedPrice: 10 },
-{ id: 101, name: "SWEET BEE", category: "netral", tags: [], tagline: "Sweet & cozy.", description: "Aroma manis lembut, hangat, dan nyaman.", topNotes: ["Honey", "Peach"], heartNotes: ["Vanilla", "Jasmine"], baseNotes: ["Musk", "Amber"], ketahanan: "5–7 jam", rekomendasi: "Daily, malam, santai.", image: "https://placehold.co/500x500/101010/FFFFFF?text=SWEET+BEE", originalPrice: 12, discountedPrice: 10 },
-{ id: 102, name: "SWEET CHOCOLATE", category: "netral", tags: [], tagline: "Delicious & warm.", description: "Aroma cokelat manis hangat, cocok untuk suasana cozy.", topNotes: ["Cocoa", "Vanilla"], heartNotes: ["Caramel", "Hazelnut"], baseNotes: ["Musk", "Amber"], ketahanan: "5–8 jam", rekomendasi: "Malam, santai, hangout.", image: "https://placehold.co/500x500/101010/FFFFFF?text=SWEET+CHOCOLATE", originalPrice: 12, discountedPrice: 10 },
-{ id: 103, name: "TOP JAPAN", category: "netral", tags: [], tagline: "Modern & stylish.", description: "Aroma modern, clean, cocok untuk pria dan wanita muda.", topNotes: ["Yuzu", "Grapefruit"], heartNotes: ["Cherry Blossom", "Jasmine"], baseNotes: ["White Musk", "Amber"], ketahanan: "5–7 jam", rekomendasi: "Daily, hangout, kantor.", image: "https://placehold.co/500x500/101010/FFFFFF?text=TOP+JAPAN", originalPrice: 12, discountedPrice: 10 },
-{ id: 104, name: "TISSUE", category: "netral", tags: [], tagline: "Soft & clean.", description: "Aroma lembut, bersih, dan fresh, simple untuk semua suasana.", topNotes: ["Lemon", "Apple"], heartNotes: ["Lily", "Rose"], baseNotes: ["White Musk", "Amber"], ketahanan: "3–5 jam", rekomendasi: "Daily, rumah, santai.", image: "https://placehold.co/500x500/101010/FFFFFF?text=TISSUE", originalPrice: 12, discountedPrice: 10 },
-{ id: 105, name: "WHITE MUSK", category: "netral", tags: [], tagline: "Pure & fresh.", description: "Aroma bersih dan murni, cocok untuk semua orang.", topNotes: ["Aldehyde"], heartNotes: ["Muguet", "Jasmine"], baseNotes: ["White Musk", "Amber"], ketahanan: "4–6 jam", rekomendasi: "Daily, kantor, rumah.", image: "https://placehold.co/500x500/101010/FFFFFF?text=WHITE+MUSK", originalPrice: 12, discountedPrice: 10 },
-{
-  id: 106, name: "ASK THINK", category: "Woman", tags: [],
-  tagline: "Modern & stylish.",
-  description: "Aroma fruity floral fresh dengan nuansa elegan, cocok buat cewek yang aktif dan percaya diri.",
-  topNotes: ["Bergamot", "Peach"],
-  heartNotes: ["Rose", "Jasmine"],
-  baseNotes: ["Cedarwood", "Musk"],
-  ketahanan: "5–7 jam", rekomendasi: "Daily, kerja, kampus.",
-  image: "https://placehold.co/500x500/101010/FFFFFF?text=ASK+THINK",
-  originalPrice: 12, discountedPrice: 10
-},
-{
-  id: 107, name: "BA ROSE", category: "Woman", tags: [],
-  tagline: "Elegan & romantis.",
-  description: "Dominasi bunga mawar yang klasik dengan sentuhan lembut musk, bikin aura feminin dan classy.",
-  topNotes: ["Rose Petals"],
-  heartNotes: ["Jasmine", "Geranium"],
-  baseNotes: ["Musk", "Amber"],
-  ketahanan: "6–8 jam", rekomendasi: "Acara resmi, malam.",
-  image: "https://placehold.co/500x500/101010/FFFFFF?text=BA+ROSE",
-  originalPrice: 12, discountedPrice: 10
-},
-{
-  id: 108, name: "GS PINK", category: "Woman", tags: [],
-  tagline: "Girly & fun.",
-  description: "Wangi fruity manis bercampur floral lembut, pas buat anak muda yang ceria dan penuh energi.",
-  topNotes: ["Strawberry", "Mandarin"],
-  heartNotes: ["Peony", "Rose"],
-  baseNotes: ["Vanilla", "Musk"],
-  ketahanan: "4–6 jam", rekomendasi: "Santai, hangout.",
-  image: "https://placehold.co/500x500/101010/FFFFFF?text=GS+PINK",
-  originalPrice: 12, discountedPrice: 10
-},
-{
-  id: 109, name: "GG BLACK WOMEN", category: "Woman", tags: [],
-  tagline: "Mewah & bold.",
-  description: "Aroma oriental floral yang kuat, elegan, dan bikin percaya diri untuk acara penting.",
-  topNotes: ["Blackcurrant", "Mandarin"],
-  heartNotes: ["Jasmine", "Iris"],
-  baseNotes: ["Vanilla", "Patchouli"],
-  ketahanan: "7–9 jam", rekomendasi: "Malam, pesta, acara resmi.",
-  image: "https://placehold.co/500x500/101010/FFFFFF?text=GG+BLACK+WOMEN",
-  originalPrice: 12, discountedPrice: 10
-},
-{
-  id: 110, name: "DOLLY GIRL", category: "Woman", tags: [],
-  tagline: "Sweet & playful.",
-  description: "Manis fruity floral youthful, cocok buat cewek yang energik, manja, dan fun.",
-  topNotes: ["Peach", "Apple"],
-  heartNotes: ["Rose", "Peony"],
-  baseNotes: ["Musk", "Vanilla"],
-  ketahanan: "4–6 jam", rekomendasi: "Siang, casual, kampus.",
-  image: "https://placehold.co/500x500/101010/FFFFFF?text=DOLLY+GIRL",
-  originalPrice: 12, discountedPrice: 10
-},
-		{
-            id: 111, name: "CA WOMEN", category: "Woman", tags: [],
-            tagline: "Feminine & classy.",
-            description: "Aroma floral clean dengan sedikit fruity, cocok buat wanita anggun dan elegan.",
-            topNotes: ["Bergamot", "Pear"],
-            heartNotes: ["Jasmine", "Lily"],
-            baseNotes: ["Musk", "Amber"],
-            ketahanan: "5–7 jam", rekomendasi: "Kerja, meeting.",
-            image: "https://placehold.co/500x500/101010/FFFFFF?text=CA+WOMEN",
-            originalPrice: 12, discountedPrice: 10
-	    },
-    ];
-
-    const productGrid = document.getElementById('product-grid');
-    const productModal = document.getElementById('product-modal');
-    // const orderModal = document.getElementById('order-modal'); // Dihapus/Diganti
-    const cartModal = document.getElementById('cart-modal'); // Modal Keranjang Baru
-    const cartCountElement = document.getElementById('cart-count'); // Counter di Navbar
-    const filterButtons = document.querySelectorAll('.filter-btn');
-    
-    // VARIABEL GLOBAL BARU UNTUK KERANJANG
-    let cart = []; 
-
-
-    // --- RENDER PRODUCTS ---
-    function renderProducts(filter = 'semua') {
-        productGrid.innerHTML = '';
-        const filteredPerfumes = perfumes.filter(p => {
-            if (filter === 'semua') return true;
-
-            // Logika Filtering Eksplisit untuk semua kategori:
-            // 1. Top Seller: Hanya tampilkan produk dengan kategori 'Top Seller'
-            if (filter === 'Top Seller') {
-                return p.category === 'Top Seller';
-            }
-            
-            // 2. Woman: Cek kategori Woman ATAU tag 'Woman' (termasuk Top Seller bertag Woman)
-            if (filter === 'Woman') {
-                return p.category === 'Woman' || p.tags.includes('Woman');
-            }
-            
-            // 3. Man: Cek kategori Man ATAU tag 'Man' (termasuk Top Seller bertag Man)
-            if (filter === 'Man') {
-                return p.category === 'Man' || p.tags.includes('Man');
-            }
-            
-            // 4. netral: Cek kategori netral ATAU tag 'netral' (termasuk Top Seller bertag netral)
-            if (filter === 'netral') {
-                return p.category === 'netral' || p.tags.includes('netral');
-            }
-            
-            return false; // Default: Jika ada filter yang tidak terdefinisi, jangan tampilkan apa-apa
-        });
-
-        filteredPerfumes.forEach(perfume => {
-            const card = document.createElement('div');
-            card.className = 'product-card bg-white rounded-xl shadow-md overflow-hidden cursor-pointer flex flex-col justify-between';
-            card.setAttribute('data-id', perfume.id);
-            card.innerHTML = `
                 <div>
-                    <div class="relative">
-                        <img src="${perfume.image}" alt="${perfume.name}" class="w-full h-48 sm:h-56 object-cover">
-                        ${perfume.category === 'Top Seller' ? '<span class="absolute top-2 right-2 bg-gold text-white text-xs font-bold px-2 py-1 rounded-full">TOP SELLER</span>' : ''}
-                    </div>
-                    <div class="p-4">
-                        <h3 class="font-bold text-lg text-charcoal truncate">${perfume.name}</h3>
-                        <p class="text-gray-500 text-sm h-10">${perfume.tagline}</p>
-                         <div class="mt-2 flex items-baseline gap-2">
-                            <span class="text-xl font-bold text-gold">$${perfume.discountedPrice}</span>
-                            <span class="text-sm text-gray-400 line-through">$${perfume.originalPrice}</span>
+                    <h4 class="text-sm font-black text-gray-900 tracking-tight">Bingung pilih aroma?</h4>
+                    <p class="text-[11px] text-gray-500 font-medium mt-0.5">Tanya Ahli Parfum (AI) kita yuk!</p>
+                </div>
+            </div>
+            <div class="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center text-white shadow-md">
+                <i data-lucide="arrow-right" class="w-4 h-4"></i>
+            </div>
+        </button>
+
+        <div class="overflow-x-auto hide-scrollbar flex space-x-3 pb-4 mb-4 -mx-5 px-5">
+            <template x-for="cat in ['Semua', 'Top Seller', 'Woman', 'Man', 'Netral']">
+                <button @click="activeCategory = cat" 
+                        :class="activeCategory === cat ? 'bg-gray-900 text-white shadow-lg shadow-gray-900/20' : 'bg-white text-gray-600 border border-gray-200'" 
+                        class="px-5 py-2.5 rounded-full text-xs font-black transition-all whitespace-nowrap flex items-center">
+                    <template x-if="cat === 'Top Seller'"><i data-lucide="flame" class="w-3.5 h-3.5 mr-1.5" :class="activeCategory === cat ? 'text-yellow-400' : 'text-orange-500'"></i></template>
+                    <span x-text="cat"></span>
+                </button>
+            </template>
+        </div>
+
+        <div x-show="isLoading" class="flex flex-col items-center justify-center py-16">
+            <i data-lucide="loader-2" class="w-10 h-10 text-yellow-500 animate-spin mb-4"></i>
+            <p class="text-xs font-bold text-gray-400 uppercase tracking-widest">Menyiapkan Koleksi...</p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4" x-show="!isLoading" x-transition.opacity>
+            <template x-for="product in filteredProducts()" :key="product.id">
+                
+                <div class="bg-white rounded-[1.5rem] p-3 shadow-sm border border-gray-100 flex flex-col h-full relative transition-all"
+                     :class="product.stock_quantity <= 0 ? 'opacity-60 grayscale-[40%]' : ''">
+                    
+                    <div class="cursor-pointer group flex-1" @click="openDetail(product)">
+                        <div class="absolute top-4 left-4 z-10 flex flex-col gap-1.5">
+                            <template x-if="product.category_id === 1 && product.stock_quantity > 0">
+                                <span class="bg-yellow-400 text-gray-900 text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded shadow-sm">Hot</span>
+                            </template>
+                            <template x-if="product.stock_quantity > 0 && product.stock_quantity <= 5">
+                                <span class="bg-red-500 text-white text-[9px] font-black uppercase px-2 py-1 rounded shadow-sm">Sisa <span x-text="product.stock_quantity"></span>!</span>
+                            </template>
+                        </div>
+
+                        <div class="w-full aspect-square rounded-[1rem] bg-gray-100 mb-3 overflow-hidden relative">
+                            <img :src="product.image_url" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onerror="this.src='https://placehold.co/300x300/f3f4f6/a1a1aa?text=BABA'">
+                            
+                            <template x-if="product.stock_quantity <= 0">
+                                <div class="absolute inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-20">
+                                    <span class="bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-black tracking-widest uppercase shadow-lg transform -rotate-12 border border-red-400">HABIS</span>
+                                </div>
+                            </template>
+                        </div>
+
+                        <h3 class="text-sm font-black text-gray-900 leading-tight truncate" x-text="product.name"></h3>
+                        <p class="text-[10px] text-gray-400 mt-1 line-clamp-1 font-medium" x-text="product.tagline"></p>
+                        
+                        <div class="mt-2 flex items-end justify-between">
+                            <div>
+                                <p class="text-[10px] text-gray-400 line-through font-bold" x-text="formatMoney(product.original_price)"></p>
+                                <p class="text-[13px] font-black text-green-600" x-text="formatMoney(product.discounted_price)"></p>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="p-4 pt-0">
-                    <button class="w-full text-sm bg-charcoal text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-800 transition-colors">Lihat Detail</button>
-                </div>
-            `;
-            card.addEventListener('click', () => showProductModal(perfume.id));
-            productGrid.appendChild(card);
-        });
-    }
 
-    // --- MODAL CONTROLS ---
-    function showProductModal(id) {
-        const perfume = perfumes.find(p => p.id === id);
-        if (!perfume) return;
-        
-        const modalContent = productModal.querySelector('.modal-content');
-        modalContent.innerHTML = `
-             <button onclick="hideProductModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-800 z-10">
-                <i data-lucide="x" class="w-8 h-8"></i>
-            </button>
-            <div class="w-full md:w-2/5">
-                 <img src="${perfume.image}" alt="${perfume.name}" class="w-full h-full object-cover md:rounded-l-xl">
-            </div>
-            <div class="w-full md:w-3/5 p-6 md:p-8 overflow-y-auto">
-                <span class="text-sm font-semibold text-gold uppercase tracking-wider">${perfume.category} ${perfume.tags.length > 0 ? `• ${perfume.tags.join(', ')}` : ''}</span>
-                <h2 class="text-3xl md:text-4xl font-bold text-charcoal mt-2 mb-4">${perfume.name}</h2>
-                <p class="text-gray-600 mb-6 leading-relaxed">${perfume.description}</p>
-                
-                <div class="space-y-4 mb-6 text-sm">
-                    <div>
-                        <h4 class="font-bold mb-1">Top Notes:</h4>
-                        <p class="text-gray-500">${perfume.topNotes.join(', ')}</p>
-                    </div>
-                    <div>
-                        <h4 class="font-bold mb-1">Heart Notes:</h4>
-                        <p class="text-gray-500">${perfume.heartNotes.join(', ')}</p>
-                    </div>
-                    <div>
-                        <h4 class="font-bold mb-1">Base Notes:</h4>
-                        <p class="text-gray-500">${perfume.baseNotes.join(', ')}</p>
-                    </div>
-                </div>
-
-                <div class="border-t pt-6 space-y-4">
-                     <div class="flex items-center text-sm"><i data-lucide="clock" class="w-5 h-5 mr-3 text-gold"></i> <div><span class="font-semibold">Ketahanan:</span> ${perfume.ketahanan}</div></div>
-                     <div class="flex items-center text-sm"><i data-lucide="sun-moon" class="w-5 h-5 mr-3 text-gold"></i> <div><span class="font-semibold">Rekomendasi:</span> ${perfume.rekomendasi}</div></div>
-                </div>
-                
-                <div class="mt-8 flex flex-col sm:flex-row items-center gap-4">
-                    <div class="flex items-baseline gap-2 flex-shrink-0">
-                        <span class="text-3xl font-bold text-gold">$${perfume.discountedPrice}</span>
-                        <span class="text-lg text-gray-400 line-through">$${perfume.originalPrice}</span>
-                    </div>
-
-                    <div class="flex items-center border rounded-lg overflow-hidden flex-shrink-0">
-                        <label for="modal-qty" class="text-sm font-medium text-gray-700 px-3">Jumlah:</label>
-                        <input type="number" id="modal-qty" value="1" min="1" class="w-16 p-2 text-center border-l focus:outline-none">
-                    </div>
-
-                    <button id="add-to-cart-btn" class="w-full sm:w-auto flex-1 bg-gold hover:bg-amber-500 text-charcoal font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105">
-                        Tambah ke Keranjang
+                    <button @click.stop="addToCart(product)" 
+                            :disabled="product.stock_quantity <= 0"
+                            :class="product.stock_quantity <= 0 ? 'bg-gray-100 text-gray-400' : 'bg-gray-900 text-yellow-400 active:scale-95 shadow-md hover:bg-gray-800'"
+                            class="w-full mt-3 py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center space-x-1.5">
+                        <i data-lucide="shopping-cart" class="w-3.5 h-3.5"></i>
+                        <span x-text="product.stock_quantity <= 0 ? 'Habis Terjual' : 'Tambah'"></span>
                     </button>
                 </div>
+
+            </template>
+
+            <div x-show="filteredProducts().length === 0 && !isLoading" class="col-span-2 text-center py-16">
+                <div class="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm border border-gray-100">
+                    <i data-lucide="search-x" class="w-10 h-10 text-gray-300"></i>
+                </div>
+                <p class="font-black text-gray-800 text-lg">Aroma Tidak Ditemukan</p>
+                <p class="text-xs text-gray-500 mt-1 font-medium">Coba gunakan nama varian yang lain ya kak.</p>
             </div>
-        `;
+        </div>
+    </main>
 
-        // Event listener untuk tombol Tambah ke Keranjang
-        document.getElementById('add-to-cart-btn').addEventListener('click', () => {
-            const qty = parseInt(document.getElementById('modal-qty').value);
-            addToCart(perfume.id, qty);
-            hideProductModal();
-            showCartModal(); // Tampilkan keranjang setelah menambah item
-        });
+    <div x-show="cartTotalItems > 0 && !isDetailModalOpen && !isCartOpen" 
+         x-transition:enter="transition ease-out duration-300" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0"
+         x-transition:leave="transition ease-in duration-200" x-transition:leave-start="translate-y-0" x-transition:leave-end="translate-y-full"
+         class="fixed bottom-5 left-5 right-5 bg-gray-900 text-white rounded-[1.5rem] shadow-2xl p-4 flex items-center justify-between z-40 border border-gray-800 backdrop-blur-md">
+        <div class="flex items-center space-x-3.5">
+            <div class="w-12 h-12 bg-yellow-500 rounded-full flex items-center justify-center text-gray-900 relative shadow-inner border border-yellow-400">
+                <i data-lucide="shopping-bag" class="w-6 h-6"></i>
+                <span class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full border-2 border-gray-900" x-text="cartTotalItems"></span>
+            </div>
+            <div>
+                <p class="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-0.5">Keranjang</p>
+                <p class="text-lg font-black text-yellow-400 leading-none" x-text="formatMoney(cartTotalPrice)"></p>
+            </div>
+        </div>
+        <button @click="isCartOpen = true" class="bg-white text-gray-900 px-6 py-3 rounded-xl text-sm font-black active:scale-95 transition-transform flex items-center shadow-lg">
+            Checkout <i data-lucide="arrow-right" class="w-4 h-4 ml-1.5"></i>
+        </button>
+    </div>
 
-
-        productModal.classList.add('active');
-        productModal.classList.remove('opacity-0', 'pointer-events-none');
-        lucide.createIcons(); // Re-render icons inside modal
-    }
-
-    function hideProductModal() {
-        productModal.classList.remove('active');
-        productModal.classList.add('opacity-0', 'pointer-events-none');
-    }
-
-    // --- CART LOGIC BARU ---
-
-    function updateCartDisplay() {
-        const totalItems = cart.reduce((sum, item) => sum + item.qty, 0);
-        cartCountElement.textContent = totalItems;
-        if (totalItems > 0) {
-            cartCountElement.classList.remove('opacity-0');
-        } else {
-            cartCountElement.classList.add('opacity-0');
-        }
-    }
-
-    function getPerfumeById(id) {
-        return perfumes.find(p => p.id === id);
-    }
-
-    function addToCart(id, qty = 1) {
-        const existingItemIndex = cart.findIndex(item => item.id === id);
-        qty = Math.max(1, parseInt(qty));
-
-        if (existingItemIndex > -1) {
-            cart[existingItemIndex].qty += qty;
-        } else {
-            const perfume = getPerfumeById(id);
-            if (perfume) {
-                cart.push({ ...perfume, qty: qty });
-            }
-        }
-        updateCartDisplay();
-    }
-
-    function removeFromCart(id) {
-        cart = cart.filter(item => item.id !== id);
-        updateCartDisplay();
-        showCartModal(); // Re-render modal
-    }
-
-    function updateCartItemQty(id, newQty) {
-        const item = cart.find(item => item.id === id);
-        if (item) {
-            item.qty = Math.max(1, parseInt(newQty));
-            if (item.qty === 0) {
-                 removeFromCart(id); // Remove if quantity is 0 after update
-            }
-        }
-        updateCartDisplay();
-        showCartModal(); // Re-render modal
-    }
-
-
-    function showCartModal() {
-        const container = document.getElementById('cart-items-container');
-        const totalQtyElement = document.getElementById('cart-total-qty');
+    <div x-show="isDetailModalOpen" style="display: none;" class="fixed inset-0 z-50 flex flex-col bg-white">
         
-        container.innerHTML = '';
-        
-        if (cart.length === 0) {
-            container.innerHTML = '<p class="text-center text-gray-500 py-4">Keranjang kosong. Ayo, tambahkan aroma favoritmu!</p>';
-            totalQtyElement.textContent = '0';
-            document.getElementById('checkout-form').style.display = 'none';
-        } else {
-            let totalQty = 0;
-            cart.forEach(item => {
-                totalQty += item.qty;
+        <div class="absolute top-0 left-0 right-0 p-5 flex justify-between items-center z-10 bg-gradient-to-b from-black/60 to-transparent">
+            <button @click="isDetailModalOpen = false" class="w-10 h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white border border-white/30 active:scale-90 transition-transform">
+                <i data-lucide="arrow-left" class="w-5 h-5"></i>
+            </button>
+            <div class="bg-black/40 backdrop-blur-md px-3 py-1 rounded-full text-white text-[10px] font-black uppercase tracking-widest border border-white/20">
+                Detail Varian
+            </div>
+        </div>
 
-                const itemHtml = document.createElement('div');
-                itemHtml.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg border';
-                itemHtml.innerHTML = `
-                    <div class="flex items-center space-x-4">
-                        <img src="${item.image}" alt="${item.name}" class="w-12 h-12 object-cover rounded">
-                        <div>
-                            <p class="font-semibold text-charcoal">${item.name}</p>
-                            <p class="text-sm text-gray-500">$${item.discountedPrice} x ${item.qty}</p>
+        <div class="flex-1 overflow-y-auto hide-scrollbar pb-32" x-show="isDetailModalOpen"
+             x-transition:enter="transition ease-out duration-300" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0"
+             x-transition:leave="transition ease-in duration-200" x-transition:leave-start="translate-y-0" x-transition:leave-end="translate-y-full">
+            
+            <div class="w-full h-[50vh] bg-gray-100 relative">
+                <img :src="selectedProductForDetail.image_url" class="w-full h-full object-cover">
+            </div>
+
+            <div class="p-6 bg-white rounded-t-[2rem] -mt-8 relative z-20">
+                <div class="flex justify-between items-start mb-2">
+                    <div>
+                        <h2 class="text-2xl font-black text-gray-900 leading-tight" x-text="selectedProductForDetail.name"></h2>
+                        <p class="text-sm text-gray-500 mt-1 font-medium" x-text="selectedProductForDetail.tagline"></p>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-4 mt-4 mb-6">
+                    <p class="text-2xl font-black text-green-600" x-text="formatMoney(selectedProductForDetail.discounted_price)"></p>
+                    <p class="text-sm text-gray-400 line-through font-bold" x-text="formatMoney(selectedProductForDetail.original_price)"></p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 mb-8">
+                    <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                        <i data-lucide="clock" class="w-5 h-5 text-yellow-500 mb-2"></i>
+                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Ketahanan</p>
+                        <p class="text-sm font-black text-gray-800 mt-0.5" x-text="selectedProductForDetail.longevity || '8-12 Jam'"></p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                        <i data-lucide="sun-moon" class="w-5 h-5 text-blue-500 mb-2"></i>
+                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Rekomendasi</p>
+                        <p class="text-sm font-black text-gray-800 mt-0.5" x-text="selectedProductForDetail.recommendation || 'All Day'"></p>
+                    </div>
+                </div>
+
+                <h3 class="text-sm font-black text-gray-900 mb-4 flex items-center"><i data-lucide="layers" class="w-4 h-4 mr-2 text-yellow-500"></i> Piramida Aroma</h3>
+                <div class="space-y-3 mb-8">
+                    <div>
+                        <p class="text-[10px] font-bold text-gray-400 uppercase mb-1.5 ml-1">Top Notes (Awal)</p>
+                        <div class="flex flex-wrap gap-2">
+                            <template x-for="note in selectedProductForDetail.top_notes">
+                                <span class="px-3 py-1.5 bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-lg text-xs font-bold" x-text="note"></span>
+                            </template>
+                            <template x-if="!selectedProductForDetail.top_notes || selectedProductForDetail.top_notes.length === 0">
+                                <span class="text-xs text-gray-400 italic">Rahasia BABA</span>
+                            </template>
                         </div>
                     </div>
-                    <div class="flex items-center space-x-3">
-                         <input type="number" min="1" value="${item.qty}" data-id="${item.id}" class="w-16 p-1 text-center border rounded quantity-input">
-                         <button onclick="removeFromCart(${item.id})" class="text-red-500 hover:text-red-700">
-                            <i data-lucide="trash-2" class="w-5 h-5"></i>
-                         </button>
+                    <div>
+                        <p class="text-[10px] font-bold text-gray-400 uppercase mb-1.5 ml-1">Heart Notes (Tengah)</p>
+                        <div class="flex flex-wrap gap-2">
+                            <template x-for="note in selectedProductForDetail.heart_notes">
+                                <span class="px-3 py-1.5 bg-pink-50 text-pink-700 border border-pink-200 rounded-lg text-xs font-bold" x-text="note"></span>
+                            </template>
+                        </div>
                     </div>
-                `;
-                container.appendChild(itemHtml);
-            });
+                    <div>
+                        <p class="text-[10px] font-bold text-gray-400 uppercase mb-1.5 ml-1">Base Notes (Akhir)</p>
+                        <div class="flex flex-wrap gap-2">
+                            <template x-for="note in selectedProductForDetail.base_notes">
+                                <span class="px-3 py-1.5 bg-gray-100 text-gray-700 border border-gray-200 rounded-lg text-xs font-bold" x-text="note"></span>
+                            </template>
+                        </div>
+                    </div>
+                </div>
 
-            // Re-render icons for trash-2
-            lucide.createIcons();
+                <h3 class="text-sm font-black text-gray-900 mb-2">Deskripsi Varian</h3>
+                <p class="text-sm text-gray-600 leading-relaxed font-medium" x-text="selectedProductForDetail.description || 'Varian eksklusif dari BABA Parfume yang diracik khusus untuk memancarkan aura kamu.'"></p>
+            </div>
+        </div>
 
-            // Add event listeners for quantity inputs
-            document.querySelectorAll('.quantity-input').forEach(input => {
-                input.addEventListener('change', (e) => {
-                    const id = parseInt(e.target.getAttribute('data-id'));
-                    const newQty = parseInt(e.target.value);
-                    updateCartItemQty(id, newQty);
-                });
-            });
+        <div class="fixed bottom-0 left-0 right-0 p-5 bg-white border-t border-gray-100 z-20 shadow-[0_-10px_20px_rgba(0,0,0,0.03)]" x-show="isDetailModalOpen" x-transition.opacity>
+            <button @click="addToCart(selectedProductForDetail); isDetailModalOpen = false;" 
+                    class="w-full bg-gray-900 text-yellow-400 py-4 rounded-2xl font-black text-base active:scale-95 transition-transform flex justify-center items-center space-x-2 shadow-lg">
+                <i data-lucide="shopping-bag" class="w-5 h-5"></i>
+                <span>Masukin ke Keranjang</span>
+            </button>
+        </div>
+    </div>
+
+    <div x-show="isCartOpen" style="display: none;" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+        <div x-show="isCartOpen" x-transition.opacity class="fixed inset-0 bg-black/60 backdrop-blur-sm" @click="isCartOpen = false"></div>
+        
+        <div x-show="isCartOpen" 
+             x-transition:enter="transition ease-out duration-300" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0"
+             x-transition:leave="transition ease-in duration-200" x-transition:leave-start="translate-y-0" x-transition:leave-end="translate-y-full"
+             class="bg-white w-full sm:max-w-md rounded-t-[2rem] sm:rounded-3xl p-6 relative z-10 max-h-[90vh] flex flex-col shadow-2xl">
+            
+            <div class="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6"></div>
+
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-2xl font-black text-gray-900">Keranjang 🛍️</h2>
+                </div>
+                <button @click="isCartOpen = false" class="p-2 bg-gray-100 text-gray-600 rounded-full active:scale-90 transition-transform"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto hide-scrollbar mb-6 -mx-2 px-2 space-y-4">
+                <template x-for="item in cart" :key="item.product.id">
+                    <div class="flex items-center space-x-4 bg-white p-3 rounded-2xl border border-gray-100 shadow-sm">
+                        <img :src="item.product.image_url" class="w-16 h-16 rounded-xl object-cover bg-gray-50">
+                        <div class="flex-1 min-w-0">
+                            <h4 class="font-bold text-gray-800 text-sm truncate" x-text="item.product.name"></h4>
+                            <p class="text-green-600 font-black text-sm mt-0.5" x-text="formatMoney(item.product.discounted_price)"></p>
+                        </div>
+                        <div class="flex items-center bg-gray-50 border border-gray-200 rounded-lg p-1">
+                            <button @click="updateQuantity(item.product.id, -1)" class="w-7 h-7 flex items-center justify-center text-gray-600 hover:bg-gray-200 rounded-md transition-colors"><i data-lucide="minus" class="w-3 h-3"></i></button>
+                            <span class="w-6 text-center text-xs font-black" x-text="item.quantity"></span>
+                            <button @click="updateQuantity(item.product.id, 1)" class="w-7 h-7 flex items-center justify-center text-gray-600 hover:bg-gray-200 rounded-md transition-colors"><i data-lucide="plus" class="w-3 h-3"></i></button>
+                        </div>
+                    </div>
+                </template>
+                
+                <div class="border-t border-gray-200 border-dashed my-6"></div>
+
+                <h3 class="font-black text-gray-900 mb-4 flex items-center"><i data-lucide="file-text" class="w-4 h-4 mr-2 text-yellow-500"></i> Data Pengiriman</h3>
+                
+                <div class="mb-4">
+                    <label class="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Nama Lengkap <span class="text-red-500">*</span></label>
+                    <input type="text" x-model="checkoutForm.fullName" placeholder="Masukkan nama kamu..." class="w-full bg-gray-50 border border-gray-200 p-3.5 rounded-xl text-sm font-medium focus:outline-none focus:border-yellow-400 focus:bg-white transition-colors" :class="formErrors.name ? 'border-red-400 bg-red-50' : ''">
+                    <p x-show="formErrors.name" class="text-xs text-red-500 font-bold mt-1.5"><i data-lucide="alert-circle" class="w-3 h-3 inline mr-1"></i>Nama wajib diisi ya kak!</p>
+                </div>
+
+                <div class="mb-6">
+                    <label class="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Lokasi / Alamat Lengkap <span class="text-red-500">*</span></label>
+                    <textarea x-model="checkoutForm.address" rows="3" placeholder="Jalan, RT/RW, Patokan rumah..." class="w-full bg-gray-50 border border-gray-200 p-3.5 rounded-xl text-sm font-medium focus:outline-none focus:border-yellow-400 focus:bg-white transition-colors" :class="formErrors.address ? 'border-red-400 bg-red-50' : ''"></textarea>
+                    <p x-show="formErrors.address" class="text-xs text-red-500 font-bold mt-1.5"><i data-lucide="alert-circle" class="w-3 h-3 inline mr-1"></i>Alamat ga boleh kosong dong!</p>
+                </div>
+
+                <h3 class="font-black text-gray-900 mb-3 flex items-center"><i data-lucide="wallet" class="w-4 h-4 mr-2 text-yellow-500"></i> Metode Pembayaran</h3>
+                <p x-show="formErrors.payment" class="text-xs text-red-500 font-bold mb-2"><i data-lucide="alert-circle" class="w-3 h-3 inline mr-1"></i>Pilih salah satu cara bayar ya kak.</p>
+                
+                <div class="space-y-3 mb-6">
+                    <label class="flex items-center p-4 border rounded-xl cursor-pointer transition-all" :class="checkoutForm.paymentMethod === 'COD' ? 'border-yellow-500 bg-yellow-50' : 'border-gray-200 bg-white'">
+                        <div class="w-5 h-5 rounded-full border-2 flex items-center justify-center mr-3" :class="checkoutForm.paymentMethod === 'COD' ? 'border-yellow-500' : 'border-gray-300'">
+                            <div class="w-2.5 h-2.5 bg-yellow-500 rounded-full" x-show="checkoutForm.paymentMethod === 'COD'"></div>
+                        </div>
+                        <input type="radio" value="COD" x-model="checkoutForm.paymentMethod" class="hidden">
+                        <div class="flex-1">
+                            <p class="font-bold text-gray-900 text-sm">Cash on Delivery (COD)</p>
+                            <p class="text-[10px] text-gray-500 font-medium">Bayar di tempat saat barang sampai.</p>
+                        </div>
+                        <i data-lucide="truck" class="w-5 h-5 text-gray-400"></i>
+                    </label>
+
+                    <label class="flex items-center p-4 border rounded-xl cursor-pointer transition-all" :class="checkoutForm.paymentMethod === 'BCA' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'">
+                        <div class="w-5 h-5 rounded-full border-2 flex items-center justify-center mr-3" :class="checkoutForm.paymentMethod === 'BCA' ? 'border-blue-500' : 'border-gray-300'">
+                            <div class="w-2.5 h-2.5 bg-blue-500 rounded-full" x-show="checkoutForm.paymentMethod === 'BCA'"></div>
+                        </div>
+                        <input type="radio" value="BCA" x-model="checkoutForm.paymentMethod" class="hidden">
+                        <div class="flex-1">
+                            <p class="font-bold text-gray-900 text-sm">Transfer Bank (BCA)</p>
+                            <p class="text-[10px] text-gray-500 font-medium">Rekening IDR (Rupiah).</p>
+                        </div>
+                        <div class="text-blue-800 font-black italic text-sm tracking-tighter">BCA</div>
+                    </label>
+
+                    <label class="flex items-center p-4 border rounded-xl cursor-pointer transition-all" :class="checkoutForm.paymentMethod === 'ABA' ? 'border-teal-500 bg-teal-50' : 'border-gray-200 bg-white'">
+                        <div class="w-5 h-5 rounded-full border-2 flex items-center justify-center mr-3" :class="checkoutForm.paymentMethod === 'ABA' ? 'border-teal-500' : 'border-gray-300'">
+                            <div class="w-2.5 h-2.5 bg-teal-500 rounded-full" x-show="checkoutForm.paymentMethod === 'ABA'"></div>
+                        </div>
+                        <input type="radio" value="ABA" x-model="checkoutForm.paymentMethod" class="hidden">
+                        <div class="flex-1">
+                            <p class="font-bold text-gray-900 text-sm">ABA Bank (Cambodia)</p>
+                            <p class="text-[10px] text-gray-500 font-medium">Transfer USD via ABA Mobile.</p>
+                        </div>
+                        <div class="bg-teal-600 text-white font-bold text-[10px] px-2 py-1 rounded">ABA</div>
+                    </label>
+                </div>
+            </div>
+
+            <div class="bg-white pt-2 border-t border-gray-100">
+                <div class="flex justify-between items-center mb-4">
+                    <span class="text-gray-500 font-bold text-sm uppercase tracking-widest">Total Bayar</span>
+                    <span class="text-2xl font-black text-gray-900" x-text="formatMoney(cartTotalPrice)"></span>
+                </div>
+                <button @click="validateCheckout()" class="w-full bg-gray-900 text-yellow-400 py-4 rounded-2xl font-black text-lg active:scale-95 transition-all flex justify-center items-center space-x-2 shadow-xl shadow-gray-900/20">
+                    <span>Lanjut Pesan Sekarang</span>
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <div x-show="isConfirmModalOpen" style="display: none;" class="fixed inset-0 z-[60] flex items-center justify-center p-5">
+        <div x-show="isConfirmModalOpen" x-transition.opacity class="fixed inset-0 bg-black/80 backdrop-blur-sm" @click="isConfirmModalOpen = false"></div>
+        
+        <div x-show="isConfirmModalOpen" 
+             x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 scale-90" x-transition:enter-end="opacity-100 scale-100"
+             x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-90"
+             class="bg-white rounded-3xl p-6 w-full max-w-sm relative z-10 text-center shadow-2xl">
+            
+            <div class="w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-white shadow-md -mt-12">
+                <i data-lucide="bell-ring" class="w-10 h-10 text-yellow-600 animate-bounce"></i>
+            </div>
+            
+            <h3 class="text-2xl font-black text-gray-900 mb-2">Yakin Pesan Sekarang?</h3>
+            <p class="text-sm text-gray-500 mb-6 font-medium">Pesanan kamu bakal langsung diterusin ke Admin BABA Parfume lewat Telegram buat diproses.</p>
+            
+            <div class="bg-gray-50 rounded-xl p-4 mb-6 text-left border border-gray-100">
+                <p class="text-xs text-gray-400 font-bold uppercase mb-1">Rincian Singkat</p>
+                <p class="font-bold text-gray-800 text-sm mb-1" x-text="checkoutForm.fullName"></p>
+                <p class="font-bold text-green-600 text-base mb-1" x-text="formatMoney(cartTotalPrice) + ' (' + checkoutForm.paymentMethod + ')'"></p>
+                <p class="text-xs text-gray-600 truncate" x-text="cartTotalItems + ' Varian Parfum'"></p>
+            </div>
+
+            <div class="flex space-x-3">
+                <button @click="isConfirmModalOpen = false" class="flex-1 py-3.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors">Cek Lagi</button>
+                <button @click="processFinalCheckout()" class="flex-1 py-3.5 bg-green-500 text-white font-black rounded-xl hover:bg-green-600 transition-colors shadow-lg shadow-green-500/30">Ya, Kirim!</button>
+            </div>
+        </div>
+    </div>
 
 
-            totalQtyElement.textContent = totalQty;
-            document.getElementById('checkout-form').style.display = 'block';
+    <script>
+        function babaStore() {
+            return {
+                products: [],
+                cart: [],
+                searchQuery: '',
+                activeCategory: 'Semua',
+                isLoading: true,
+                
+                // Modal States
+                isCartOpen: false,
+                isDetailModalOpen: false,
+                isConfirmModalOpen: false,
+                showUSP: false,
+                
+                // Detail Target
+                selectedProductForDetail: {},
+                
+                // Form & Validation
+                checkoutForm: {
+                    fullName: '',
+                    address: '',
+                    paymentMethod: ''
+                },
+                formErrors: {
+                    name: false,
+                    address: false,
+                    payment: false
+                },
+                
+                tgUser: {
+                    first_name: 'Kamu',
+                    username: '',
+                    photo_url: '',
+                    id: ''
+                },
+
+                initData() {
+                    // INISIASI TELEGRAM WEB APP
+                    if (window.Telegram && window.Telegram.WebApp) {
+                        const tg = window.Telegram.WebApp;
+                        tg.ready();
+                        tg.expand();
+                        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+                            this.tgUser = tg.initDataUnsafe.user;
+                            // Pre-fill form nama otomatis dari data Telegram
+                            this.checkoutForm.fullName = this.tgUser.first_name + (this.tgUser.last_name ? ' ' + this.tgUser.last_name : '');
+                        }
+                    }
+
+                    // FETCH DATA DARI MAIN.PY
+                    fetch('/api/v1/products/live')
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                this.products = data.data;
+                            }
+                        })
+                        .catch(err => console.error("Error Fetch:", err))
+                        .finally(() => {
+                            this.isLoading = false;
+                            // Re-init lucide icons setelah render data
+                            setTimeout(() => lucide.createIcons(), 100);
+                        });
+                },
+
+                filteredProducts() {
+                    let result = this.products;
+
+                    // FILTER KATEGORI
+                    if (this.activeCategory !== 'Semua') {
+                        if (this.activeCategory === 'Top Seller') {
+                            result = result.filter(p => p.category_id === 1 || (p.tags && p.tags.some(t => t.toLowerCase() === 'top seller')));
+                        } else {
+                            result = result.filter(p => p.tags && p.tags.some(tag => tag.toLowerCase() === this.activeCategory.toLowerCase()));
+                        }
+                    }
+
+                    // FILTER SEARCH
+                    if (this.searchQuery) {
+                        const q = this.searchQuery.toLowerCase();
+                        result = result.filter(p => 
+                            p.name.toLowerCase().includes(q) || 
+                            (p.top_notes && p.top_notes.join(' ').toLowerCase().includes(q)) ||
+                            (p.tagline && p.tagline.toLowerCase().includes(q))
+                        );
+                    }
+
+                    // SORTING LOGIC: HABIS DI BAWAH, TOP SELLER DI ATAS
+                    result = result.sort((a, b) => {
+                        const aHasStock = a.stock_quantity > 0;
+                        const bHasStock = b.stock_quantity > 0;
+                        
+                        if (aHasStock && !bHasStock) return -1;
+                        if (!aHasStock && bHasStock) return 1;
+
+                        if (this.activeCategory === 'Semua') {
+                            const aIsTop = (a.category_id === 1) ? 1 : 0;
+                            const bIsTop = (b.category_id === 1) ? 1 : 0;
+                            if (aIsTop !== bIsTop) return bIsTop - aIsTop;
+                        }
+                        return b.stock_quantity - a.stock_quantity;
+                    });
+
+                    return result;
+                },
+
+                openDetail(product) {
+                    this.selectedProductForDetail = product;
+                    this.isDetailModalOpen = true;
+                    // Re-render icons yang ada di dalam modal
+                    setTimeout(() => lucide.createIcons(), 50);
+                },
+
+                addToCart(product) {
+                    if(product.stock_quantity <= 0) return;
+                    
+                    const existing = this.cart.find(item => item.product.id === product.id);
+                    if (existing) {
+                        if (existing.quantity < product.stock_quantity) existing.quantity++;
+                    } else {
+                        this.cart.push({ product: product, quantity: 1 });
+                    }
+                    
+                    // GETARAN HP TELEGRAM
+                    if (window.Telegram && window.Telegram.WebApp.HapticFeedback) {
+                        window.Telegram.WebApp.HapticFeedback.impactOccurred('medium');
+                    }
+                },
+
+                updateQuantity(productId, delta) {
+                    const index = this.cart.findIndex(item => item.product.id === productId);
+                    if (index > -1) {
+                        const item = this.cart[index];
+                        const newQ = item.quantity + delta;
+                        if (newQ > 0 && newQ <= item.product.stock_quantity) {
+                            item.quantity = newQ;
+                        } else if (newQ <= 0) {
+                            this.cart.splice(index, 1);
+                        }
+                    }
+                },
+
+                get cartTotalItems() {
+                    return this.cart.reduce((total, item) => total + item.quantity, 0);
+                },
+
+                get cartTotalPrice() {
+                    return this.cart.reduce((total, item) => total + (item.product.discounted_price * item.quantity), 0);
+                },
+
+                formatMoney(amount) {
+                    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+                },
+
+                // STEP 1: VALIDASI FORM SEBELUM BUKA MODAL KONFIRMASI
+                validateCheckout() {
+                    this.formErrors.name = this.checkoutForm.fullName.trim() === '';
+                    this.formErrors.address = this.checkoutForm.address.trim() === '';
+                    this.formErrors.payment = this.checkoutForm.paymentMethod === '';
+
+                    if (!this.formErrors.name && !this.formErrors.address && !this.formErrors.payment) {
+                        // Kalo lolos validasi, buka modal "Yakin?"
+                        this.isConfirmModalOpen = true;
+                        if (window.Telegram && window.Telegram.WebApp.HapticFeedback) {
+                            window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+                        }
+                    } else {
+                        // Kalo gagal validasi, geter error
+                        if (window.Telegram && window.Telegram.WebApp.HapticFeedback) {
+                            window.Telegram.WebApp.HapticFeedback.notificationOccurred('error');
+                        }
+                        // Scroll dikit ke atas biar errornya keliatan (opsional)
+                        const cartContainer = document.querySelector('.overflow-y-auto');
+                        if(cartContainer) cartContainer.scrollTo({top: 100, behavior: 'smooth'});
+                    }
+                },
+
+                // STEP 2: PROSES KIRIM DATA (TRIGGER BOT & DATABASE)
+                processFinalCheckout() {
+                    // Bikin Payload JSON super komplit buat ditangkep Bot.py nanti
+                    const payload = {
+                        action: 'checkout',
+                        customer: {
+                            id: this.tgUser.id,
+                            username: this.tgUser.username,
+                            first_name: this.tgUser.first_name,
+                            full_name: this.checkoutForm.fullName,
+                            address: this.checkoutForm.address
+                        },
+                        items: this.cart.map(i => ({
+                            id: i.product.id,
+                            name: i.product.name,
+                            qty: i.quantity,
+                            price: i.product.discounted_price
+                        })),
+                        payment_method: this.checkoutForm.paymentMethod,
+                        total_amount: this.cartTotalPrice
+                    };
+
+                    if (window.Telegram && window.Telegram.WebApp) {
+                        // INI KUNCI UTAMA: Ngirim data ke Bot Python!
+                        // Nanti di bot.py kita nangkep pake web_app_data
+                        window.Telegram.WebApp.sendData(JSON.stringify(payload));
+                        window.Telegram.WebApp.close(); // Tutup Mini App, balik ke chatan Bot
+                    } else {
+                        // Mode testing di browser laptop biasa
+                        alert("✅ PESANAN BERHASIL!\n\nKarena ini bukan di Telegram, data JSON yg ke-generate adalah:\n" + JSON.stringify(payload, null, 2));
+                        this.isConfirmModalOpen = false;
+                        this.isCartOpen = false;
+                        this.cart = []; // Kosongin keranjang
+                    }
+                }
+            }
         }
-        
-        // Modal Display
-        cartModal.classList.add('active');
-        cartModal.classList.remove('opacity-0', 'pointer-events-none');
-    }
-
-    function hideCartModal() {
-        cartModal.classList.remove('active');
-        cartModal.classList.add('opacity-0', 'pointer-events-none');
-    }
-
-    function handleCheckout(platform) {
-        const form = document.getElementById('checkout-form');
-        if (cart.length === 0) return;
-
-        // Simple validation check
-        const customerName = document.getElementById('checkout-name').value;
-        const address = document.getElementById('checkout-address').value;
-        if (!customerName.trim() || !address.trim()) {
-             alert('Mohon lengkapi Nama dan Alamat Lengkap Anda sebelum checkout.');
-             return;
-        }
-
-
-        // Format detail pesanan
-        let orderDetails = cart.map(item => `- ${item.name} (${item.qty}x)`).join('\n');
-        
-        const message = `Halo BABA, saya mau pesan:\n\n*DETAIL PESANAN:*\n${orderDetails}\n\n*INFORMASI PENGIRIMAN:*\n- Nama: *${customerName}*\n- Alamat: *${address}*`;
-        const encodedMessage = encodeURIComponent(message);
-        
-        let url = '';
-        if (platform === 'whatsapp') {
-            url = `https://wa.me/628972996650?text=${encodedMessage}`;
-        } else if (platform === 'telegram') {
-            url = `https://t.me/babaparfume_bot?text=${encodedMessage}`;
-        }
-        
-        window.open(url, '_blank');
-        
-        // Clear cart after checkout attempt
-        cart = [];
-        updateCartDisplay();
-        hideCartModal();
-    }
-    
-    // --- EVENT LISTENERS (UPDATE) ---
-document.addEventListener('DOMContentLoaded', () => {
-    renderProducts();
-    
-    // Perbaikan Lucide: Cek dan panggil createIcons
-    if (typeof lucide !== 'undefined' && lucide.createIcons) {
-        lucide.createIcons();
-    } else {
-        console.error("Lucide icons library failed to load.");
-    }
-
-    updateCartDisplay();
-    
-    // Pindahkan event listener tombol keranjang ke sini (Fix 'is not defined')
-    const cartButton = document.getElementById('cart-button');
-    if (cartButton) {
-        cartButton.addEventListener('click', showCartModal);
-    }
-
-    // Mobile Menu
-    const mobileMenuButton = document.getElementById('mobile-menu-button');
-    const mobileMenu = document.getElementById('mobile-menu');
-    mobileMenuButton.addEventListener('click', () => {
-        mobileMenu.classList.toggle('hidden');
-    });
-
-    // Close mobile menu when a link is clicked
-    mobileMenu.addEventListener('click', (e) => {
-        if (e.target.tagName === 'A') {
-            mobileMenu.classList.add('hidden');
-        }
-    });
-
-     // Event listeners untuk Checkout
-    document.getElementById('send-wa-checkout-btn').addEventListener('click', () => handleCheckout('whatsapp'));
-    document.getElementById('send-tg-checkout-btn').addEventListener('click', () => handleCheckout('telegram'));
-});
-
-// --- EVENT LISTENERS ---
-    document.addEventListener('DOMContentLoaded', () => {
-        renderProducts();
-        lucide.createIcons();
-    });
-
-    filterButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            filterButtons.forEach(btn => btn.classList.remove('active'));
-            button.classList.add('active');
-            const filter = button.getAttribute('data-filter');
-            renderProducts(filter);
-        });
-    });
-
-    
-
     </script>
 </body>
 </html>
