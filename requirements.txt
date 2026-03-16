@@ -5,3 +5,4 @@ supabase
 jinja2
 python-dotenv
 websockets==12.0
+python-multipart
