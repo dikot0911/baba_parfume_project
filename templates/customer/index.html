@@ -25,138 +25,179 @@
         }
 
         /* CUSTOM ANIMATIONS */
-        @keyframes fade-in-up {
-            0% { opacity: 0; transform: translateY(10px); }
+        @keyframes fadeInUp {
+            0% { opacity: 0; transform: translateY(15px); }
             100% { opacity: 1; transform: translateY(0); }
         }
-        .animate-fade-in-up { animation: fade-in-up 0.4s ease-out forwards; }
+        .animate-fade-in-up { animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         
+        @keyframes shimmer {
+            0% { background-position: -1000px 0; }
+            100% { background-position: 1000px 0; }
+        }
+        .skeleton {
+            background: #f6f7f8;
+            background-image: linear-gradient(to right, #f6f7f8 0%, #edeef1 20%, #f6f7f8 40%, #f6f7f8 100%);
+            background-repeat: no-repeat;
+            background-size: 1000px 100%;
+            animation: shimmer 2s infinite linear forwards;
+        }
+
         /* GLASSMORPHISM */
         .glass-effect {
             background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
         }
+        
+        /* TOAST ANIMATION */
+        .toast-enter { transform: translateY(-100%); opacity: 0; }
+        .toast-enter-active { transform: translateY(0); opacity: 1; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .toast-leave { transform: translateY(0); opacity: 1; }
+        .toast-leave-active { transform: translateY(-100%); opacity: 0; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
     </style>
 </head>
 
-<body x-data="babaStore()" x-init="initData()" class="pb-28 text-gray-800" :class="isDetailModalOpen || isCartOpen || isConfirmModalOpen ? 'overflow-hidden' : ''">
+<body x-data="babaStore()" x-init="initData()" class="text-gray-800" :class="isDetailModalOpen || isCartOpen || isConfirmModalOpen ? 'overflow-hidden' : 'pb-32'">
 
-    <header class="glass-effect px-5 pt-6 pb-4 rounded-b-[2rem] shadow-[0_8px_30px_-15px_rgba(0,0,0,0.05)] sticky top-0 z-30 border-b border-white/50">
+    <div class="fixed top-4 left-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none">
+        <template x-for="toast in toasts" :key="toast.id">
+            <div class="flex items-center p-4 rounded-2xl shadow-xl transform transition-all duration-300 pointer-events-auto"
+                 :class="{
+                    'bg-gray-900 text-white': toast.type === 'success',
+                    'bg-red-500 text-white': toast.type === 'error',
+                    'bg-blue-500 text-white': toast.type === 'info'
+                 }"
+                 x-show="toast.visible"
+                 x-transition:enter="transition ease-out duration-300"
+                 x-transition:enter-start="opacity-0 -translate-y-4 scale-95"
+                 x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+                 x-transition:leave="transition ease-in duration-200"
+                 x-transition:leave-start="opacity-100 translate-y-0 scale-100"
+                 x-transition:leave-end="opacity-0 -translate-y-4 scale-95">
+                <i :data-lucide="toast.type === 'success' ? 'check-circle' : (toast.type === 'error' ? 'alert-circle' : 'info')" class="w-5 h-5 mr-3 flex-shrink-0"></i>
+                <p class="text-sm font-bold tracking-wide" x-text="toast.message"></p>
+            </div>
+        </template>
+    </div>
+
+    <header class="glass-effect px-5 pt-6 pb-5 rounded-b-[2.5rem] shadow-[0_10px_40px_-15px_rgba(0,0,0,0.08)] sticky top-0 z-30 border-b border-white/60">
         <div class="flex justify-between items-center">
-            <div class="animate-fade-in-up">
-                <h1 class="text-2xl font-black tracking-tight text-gray-900">Halo, <span x-text="checkoutForm.fullName || 'Kak'" class="text-yellow-600"></span>! ✨</h1>
-                <p class="text-[11px] text-gray-500 font-semibold mt-1 tracking-wide uppercase">Siap cari wangi signature kamu?</p>
+            <div class="animate-fade-in-up" style="animation-delay: 0s;">
+                <h1 class="text-2xl font-black tracking-tight text-gray-900">Halo, <span x-text="checkoutForm.fullName || 'Kak'" class="text-transparent bg-clip-text bg-gradient-to-r from-yellow-600 to-amber-500"></span>! ✨</h1>
+                <p class="text-[11px] text-gray-500 font-bold mt-1 tracking-widest uppercase">Cari Wangi Signature Kamu</p>
             </div>
             
-            <div class="relative shadow-lg rounded-full animate-fade-in-up" style="animation-delay: 0.1s;">
+            <div class="relative shadow-lg rounded-full animate-fade-in-up cursor-pointer" style="animation-delay: 0.1s;" @click="showToast('Profil disinkronkan dari Telegram', 'info')">
                 <template x-if="tgUser.photo_url">
                     <img :src="tgUser.photo_url" class="w-12 h-12 rounded-full border-[3px] border-white shadow-sm object-cover">
                 </template>
                 <template x-if="!tgUser.photo_url">
-                    <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-gray-900 to-gray-700 text-yellow-400 flex items-center justify-center font-bold text-xl border-[3px] border-white shadow-sm" x-text="(checkoutForm.fullName || 'B').charAt(0).toUpperCase()"></div>
+                    <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-gray-900 to-gray-800 text-yellow-400 flex items-center justify-center font-bold text-xl border-[3px] border-white shadow-sm" x-text="(checkoutForm.fullName || 'B').charAt(0).toUpperCase()"></div>
                 </template>
-                <span class="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full"></span>
+                <span class="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full"></span>
             </div>
         </div>
 
-        <div class="mt-5 relative animate-fade-in-up" style="animation-delay: 0.2s;">
-            <i data-lucide="search" class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5"></i>
-            <input type="text" x-model="searchQuery" placeholder="Cari varian BABA favoritmu..." class="w-full bg-gray-100/80 text-sm font-medium pl-12 pr-4 py-3.5 rounded-2xl border border-transparent focus:border-yellow-400 focus:ring-4 focus:ring-yellow-400/20 focus:bg-white transition-all outline-none">
+        <div class="mt-5 relative animate-fade-in-up group" style="animation-delay: 0.2s;">
+            <i data-lucide="search" class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 group-focus-within:text-yellow-500 transition-colors"></i>
+            <input type="text" x-model="searchQuery" placeholder="Cari varian BABA favoritmu..." class="w-full bg-gray-100/70 text-sm font-medium pl-12 pr-4 py-4 rounded-2xl border border-transparent focus:border-yellow-400 focus:ring-4 focus:ring-yellow-400/20 focus:bg-white transition-all outline-none shadow-inner">
         </div>
     </header>
 
     <main class="px-5 mt-6">
-        
-        <div class="bg-gray-900 rounded-[2rem] p-6 text-white relative overflow-hidden shadow-xl mb-6 animate-fade-in-up" style="animation-delay: 0.3s;">
-            <div class="absolute -right-10 -top-10 opacity-20">
-                <i data-lucide="sparkles" class="w-48 h-48 text-yellow-400"></i>
-            </div>
-            <div class="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent z-0"></div>
-            
-            <div class="relative z-10">
-                <div class="flex items-center space-x-2 mb-2">
-                    <span class="bg-yellow-500 text-gray-900 text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest">Premium</span>
-                    <h2 class="font-black text-xl text-white tracking-wide">BABA Parfume</h2>
+        <div class="flex overflow-x-auto hide-scrollbar space-x-4 mb-8 -mx-5 px-5 snap-x animate-fade-in-up" style="animation-delay: 0.25s;">
+            <div class="snap-center shrink-0 w-[85vw] max-w-[320px] bg-gradient-to-br from-gray-900 to-black rounded-[2rem] p-6 text-white relative overflow-hidden shadow-xl border border-gray-800">
+                <div class="absolute -right-6 -top-6 opacity-20"><i data-lucide="sparkles" class="w-40 h-40 text-yellow-400"></i></div>
+                <div class="relative z-10">
+                    <span class="bg-yellow-500 text-gray-900 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest shadow-sm">Premium</span>
+                    <h2 class="font-black text-2xl text-white tracking-wide mt-3 mb-1">BABA Parfume</h2>
+                    <p class="text-xs text-gray-300 leading-relaxed font-medium">Bukan sekadar wangi, ini adalah rasa percaya diri yang nemenin kamu seharian.</p>
                 </div>
-                <p class="text-xs text-gray-300 mt-1 leading-relaxed pr-8 font-medium">Bukan sekadar wangi, ini adalah rasa percaya diri yang nemenin kamu seharian.</p>
-                
-                <button @click="showUSP = !showUSP" class="mt-5 text-[10px] font-bold bg-white/10 hover:bg-white/20 text-white px-4 py-2.5 rounded-full flex items-center transition-all backdrop-blur-md active:scale-95 border border-white/10">
-                    <span x-text="showUSP ? 'Tutup Info' : 'Kenapa BABA Parfume?'"></span>
-                    <i data-lucide="chevron-down" class="w-3.5 h-3.5 ml-2 transition-transform duration-300" :class="showUSP ? 'rotate-180' : ''"></i>
-                </button>
-                
-                <div x-show="showUSP" x-transition.opacity class="mt-4 pt-4 border-t border-gray-700/50 text-[11px] text-gray-300 space-y-3.5">
-                    <div class="flex items-start">
-                        <div class="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center mr-3 flex-shrink-0"><i data-lucide="shield-check" class="w-3.5 h-3.5 text-green-400"></i></div>
-                        <p class="mt-0.5"><strong class="text-white">Halal & BPOM:</strong> Aman di kulit dan nyaman dipakai beribadah kapan saja.</p>
-                    </div>
-                    <div class="flex items-start">
-                        <div class="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center mr-3 flex-shrink-0"><i data-lucide="droplet" class="w-3.5 h-3.5 text-blue-400"></i></div>
-                        <p class="mt-0.5"><strong class="text-white">Bibit Import Paris:</strong> Rasio sempurna 80% bibit asli & 20% Turbo Expert.</p>
-                    </div>
-                    <div class="flex items-start">
-                        <div class="w-6 h-6 rounded-full bg-yellow-500/20 flex items-center justify-center mr-3 flex-shrink-0"><i data-lucide="clock" class="w-3.5 h-3.5 text-yellow-400"></i></div>
-                        <p class="mt-0.5"><strong class="text-white">Tahan Lama:</strong> Wanginya awet banget buat nemenin aktivitas kamu.</p>
-                    </div>
+            </div>
+            <div class="snap-center shrink-0 w-[85vw] max-w-[320px] bg-gradient-to-br from-amber-500 to-orange-600 rounded-[2rem] p-6 text-white relative overflow-hidden shadow-xl">
+                <div class="absolute -right-4 -bottom-4 opacity-20"><i data-lucide="truck" class="w-32 h-32 text-white"></i></div>
+                <div class="relative z-10">
+                    <span class="bg-white text-orange-600 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest shadow-sm">Promo</span>
+                    <h2 class="font-black text-2xl text-white tracking-wide mt-3 mb-1">Gratis Ongkir!</h2>
+                    <p class="text-xs text-white/90 leading-relaxed font-medium">Spesial pengiriman ke seluruh wilayah Kamboja via J&T / Vireak Buntham.</p>
                 </div>
             </div>
         </div>
 
-        <button onclick="alert('Mengarahkan ke Chat AI Ahli Parfum (Segera Hadir)')" class="w-full bg-gradient-to-r from-yellow-50 to-white border border-yellow-200 rounded-[1.5rem] p-4 mb-8 flex items-center justify-between transition-all shadow-[0_4px_15px_rgba(234,179,8,0.1)] active:scale-[0.98] animate-fade-in-up" style="animation-delay: 0.4s;">
-            <div class="flex items-center text-left">
-                <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mr-4 flex-shrink-0 border border-yellow-200 relative">
-                    <i data-lucide="bot" class="w-6 h-6 text-yellow-700"></i>
-                    <span class="absolute top-0 right-0 w-3 h-3 bg-red-500 border-2 border-white rounded-full animate-pulse"></span>
+        <div class="bg-white rounded-[2rem] p-1 border border-gray-100 shadow-sm mb-8 animate-fade-in-up" style="animation-delay: 0.3s;">
+            <button @click="showUSP = !showUSP" class="w-full bg-gray-50/50 hover:bg-gray-100 text-gray-800 px-5 py-4 rounded-[1.8rem] flex items-center justify-between transition-all">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center"><i data-lucide="award" class="w-4 h-4"></i></div>
+                    <span class="text-sm font-black tracking-wide">Kenapa Pilih BABA?</span>
                 </div>
-                <div>
-                    <h4 class="text-sm font-black text-gray-900 tracking-tight">Bingung pilih aroma?</h4>
-                    <p class="text-[11px] text-gray-500 font-medium mt-0.5">Tanya Ahli Parfum (AI) kita yuk!</p>
+                <i data-lucide="chevron-down" class="w-5 h-5 text-gray-400 transition-transform duration-300" :class="showUSP ? 'rotate-180' : ''"></i>
+            </button>
+            
+            <div x-show="showUSP" x-transition.opacity class="p-5 space-y-4">
+                <div class="flex items-start">
+                    <div class="w-8 h-8 rounded-full bg-green-50 flex items-center justify-center mr-3 flex-shrink-0"><i data-lucide="shield-check" class="w-4 h-4 text-green-500"></i></div>
+                    <div><h4 class="font-bold text-gray-900 text-sm">Halal & BPOM</h4><p class="text-xs text-gray-500 font-medium">Aman di kulit, nyaman untuk ibadah.</p></div>
+                </div>
+                <div class="flex items-start">
+                    <div class="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center mr-3 flex-shrink-0"><i data-lucide="droplet" class="w-4 h-4 text-blue-500"></i></div>
+                    <div><h4 class="font-bold text-gray-900 text-sm">Bibit Import Paris</h4><p class="text-xs text-gray-500 font-medium">80% Bibit Asli & 20% Turbo Expert.</p></div>
+                </div>
+                <div class="flex items-start">
+                    <div class="w-8 h-8 rounded-full bg-yellow-50 flex items-center justify-center mr-3 flex-shrink-0"><i data-lucide="clock" class="w-4 h-4 text-yellow-500"></i></div>
+                    <div><h4 class="font-bold text-gray-900 text-sm">Tahan Lama</h4><p class="text-xs text-gray-500 font-medium">Awet seharian nemenin aktivitasmu.</p></div>
                 </div>
             </div>
-            <div class="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center text-white shadow-md">
-                <i data-lucide="arrow-right" class="w-4 h-4"></i>
-            </div>
-        </button>
+        </div>
 
-        <div class="overflow-x-auto hide-scrollbar flex space-x-3 pb-4 mb-4 -mx-5 px-5">
+        <div class="flex items-center justify-between mb-4 animate-fade-in-up" style="animation-delay: 0.35s;">
+            <h3 class="text-lg font-black text-gray-900">Koleksi Kami</h3>
+        </div>
+        <div class="overflow-x-auto hide-scrollbar flex space-x-3 pb-2 mb-4 -mx-5 px-5 animate-fade-in-up" style="animation-delay: 0.4s;">
             <template x-for="cat in ['Semua', 'Top Seller', 'Woman', 'Man', 'Netral']">
-                <button @click="activeCategory = cat" 
-                        :class="activeCategory === cat ? 'bg-gray-900 text-white shadow-lg shadow-gray-900/20' : 'bg-white text-gray-600 border border-gray-200'" 
-                        class="px-5 py-2.5 rounded-full text-xs font-black transition-all whitespace-nowrap flex items-center">
-                    <template x-if="cat === 'Top Seller'"><i data-lucide="flame" class="w-3.5 h-3.5 mr-1.5" :class="activeCategory === cat ? 'text-yellow-400' : 'text-orange-500'"></i></template>
+                <button @click="activeCategory = cat; showToast('Menampilkan: ' + cat, 'info')" 
+                        :class="activeCategory === cat ? 'bg-gray-900 text-white shadow-lg shadow-gray-900/20 ring-2 ring-gray-900 ring-offset-2' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'" 
+                        class="px-5 py-2.5 rounded-full text-xs font-black transition-all whitespace-nowrap flex items-center shrink-0">
+                    <template x-if="cat === 'Top Seller'"><i data-lucide="flame" class="w-4 h-4 mr-1.5" :class="activeCategory === cat ? 'text-yellow-400' : 'text-orange-500'"></i></template>
                     <span x-text="cat"></span>
                 </button>
             </template>
         </div>
 
-        <div x-show="isLoading" class="flex flex-col items-center justify-center py-16">
-            <i data-lucide="loader-2" class="w-10 h-10 text-yellow-500 animate-spin mb-4"></i>
-            <p class="text-xs font-bold text-gray-400 uppercase tracking-widest">Menyiapkan Koleksi...</p>
+        <div x-show="isLoading" class="grid grid-cols-2 gap-4 mt-6">
+            <template x-for="i in 4">
+                <div class="bg-white rounded-[1.5rem] p-3 shadow-sm border border-gray-100">
+                    <div class="w-full aspect-square rounded-[1rem] skeleton mb-3"></div>
+                    <div class="h-4 w-3/4 skeleton rounded mb-2"></div>
+                    <div class="h-3 w-1/2 skeleton rounded mb-4"></div>
+                    <div class="h-5 w-1/3 skeleton rounded mb-3"></div>
+                    <div class="h-10 w-full skeleton rounded-xl"></div>
+                </div>
+            </template>
         </div>
 
-        <div class="grid grid-cols-2 gap-4" x-show="!isLoading" x-transition.opacity>
+        <div class="grid grid-cols-2 gap-4" x-show="!isLoading" x-transition:enter="transition ease-out duration-500" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
             <template x-for="product in filteredProducts()" :key="product.id">
                 
-                <div class="bg-white rounded-[1.5rem] p-3 shadow-sm border border-gray-100 flex flex-col h-full relative transition-all"
+                <div class="bg-white rounded-[1.5rem] p-3 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] border border-gray-100 flex flex-col h-full relative transition-all duration-300 hover:shadow-[0_8px_30px_-10px_rgba(0,0,0,0.1)]"
                      :class="product.stock_quantity <= 0 ? 'opacity-60 grayscale-[40%]' : ''">
                     
                     <div class="cursor-pointer group flex-1" @click="openDetail(product)">
                         <div class="absolute top-4 left-4 z-10 flex flex-col gap-1.5">
                             <template x-if="product.category_id === 1 && product.stock_quantity > 0">
-                                <span class="bg-yellow-400 text-gray-900 text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded shadow-sm">Hot</span>
+                                <span class="bg-yellow-400 text-gray-900 text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded shadow-sm flex items-center gap-1"><i data-lucide="zap" class="w-2.5 h-2.5"></i> Hot</span>
                             </template>
                             <template x-if="product.stock_quantity > 0 && product.stock_quantity <= 5">
-                                <span class="bg-red-500 text-white text-[9px] font-black uppercase px-2 py-1 rounded shadow-sm">Sisa <span x-text="product.stock_quantity"></span>!</span>
+                                <span class="bg-red-500 text-white text-[9px] font-black uppercase px-2 py-1 rounded shadow-sm animate-pulse">Sisa <span x-text="product.stock_quantity"></span>!</span>
                             </template>
                         </div>
 
-                        <div class="w-full aspect-square rounded-[1rem] bg-gray-100 mb-3 overflow-hidden relative">
-                            <img :src="product.image_url" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onerror="this.src='https://placehold.co/300x300/f3f4f6/a1a1aa?text=BABA'">
+                        <div class="w-full aspect-square rounded-[1rem] bg-gray-50 mb-3 overflow-hidden relative group-hover:ring-2 ring-yellow-400/50 transition-all">
+                            <img :src="product.image_url" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" onerror="this.src='https://placehold.co/300x300/f3f4f6/a1a1aa?text=BABA'">
                             
                             <template x-if="product.stock_quantity <= 0">
-                                <div class="absolute inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-20">
-                                    <span class="bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-black tracking-widest uppercase shadow-lg transform -rotate-12 border border-red-400">HABIS</span>
+                                <div class="absolute inset-0 bg-black/50 backdrop-blur-[2px] flex items-center justify-center z-20">
+                                    <span class="bg-red-600 text-white px-4 py-1.5 rounded-lg text-[10px] font-black tracking-widest uppercase shadow-lg transform -rotate-12 border border-red-400">HABIS</span>
                                 </div>
                             </template>
                         </div>
@@ -164,10 +205,10 @@
                         <h3 class="text-sm font-black text-gray-900 leading-tight truncate" x-text="product.name"></h3>
                         <p class="text-[10px] text-gray-400 mt-1 line-clamp-1 font-medium" x-text="product.tagline"></p>
                         
-                        <div class="mt-2 flex items-end justify-between">
+                        <div class="mt-2.5 flex items-end justify-between">
                             <div>
                                 <p class="text-[10px] text-gray-400 line-through font-bold" x-text="formatMoney(product.original_price)"></p>
-                                <p class="text-[13px] font-black text-green-600" x-text="formatMoney(product.discounted_price)"></p>
+                                <p class="text-sm font-black text-emerald-600" x-text="formatMoney(product.discounted_price)"></p>
                             </div>
                         </div>
                     </div>
@@ -176,230 +217,280 @@
                             :disabled="product.stock_quantity <= 0"
                             :class="product.stock_quantity <= 0 ? 'bg-gray-100 text-gray-400' : 'bg-gray-900 text-yellow-400 active:scale-95 shadow-md hover:bg-gray-800'"
                             class="w-full mt-3 py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center space-x-1.5">
-                        <i data-lucide="shopping-cart" class="w-3.5 h-3.5"></i>
-                        <span x-text="product.stock_quantity <= 0 ? 'Habis Terjual' : 'Tambah'"></span>
+                        <i data-lucide="shopping-cart" class="w-4 h-4"></i>
+                        <span x-text="product.stock_quantity <= 0 ? 'Habis Terjual' : '+ Keranjang'"></span>
                     </button>
                 </div>
-
             </template>
 
-            <div x-show="filteredProducts().length === 0 && !isLoading" class="col-span-2 text-center py-16">
-                <div class="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm border border-gray-100">
+            <div x-show="filteredProducts().length === 0 && !isLoading" class="col-span-2 text-center py-16 bg-white rounded-[2rem] border border-gray-100">
+                <div class="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-gray-100">
                     <i data-lucide="search-x" class="w-10 h-10 text-gray-300"></i>
                 </div>
-                <p class="font-black text-gray-800 text-lg">Aroma Tidak Ditemukan</p>
-                <p class="text-xs text-gray-500 mt-1 font-medium">Coba gunakan nama varian yang lain ya kak.</p>
+                <p class="font-black text-gray-900 text-lg">Aroma Tidak Ditemukan</p>
+                <p class="text-xs text-gray-500 mt-1 font-medium px-8">Maaf kak, varian yang dicari belum ada. Coba kata kunci lain ya.</p>
             </div>
         </div>
+
+        <div class="mt-10 mb-8 animate-fade-in-up" style="animation-delay: 0.5s;" x-show="!isLoading">
+            <h3 class="text-lg font-black text-gray-900 mb-4 text-center">Kata Mereka 💬</h3>
+            <div class="bg-white p-5 rounded-[2rem] shadow-sm border border-gray-100 relative">
+                <i data-lucide="quote" class="absolute top-4 right-4 w-8 h-8 text-gray-100"></i>
+                <div class="flex items-center gap-1 mb-2 text-yellow-400">
+                    <i data-lucide="star" class="w-4 h-4 fill-current"></i><i data-lucide="star" class="w-4 h-4 fill-current"></i><i data-lucide="star" class="w-4 h-4 fill-current"></i><i data-lucide="star" class="w-4 h-4 fill-current"></i><i data-lucide="star" class="w-4 h-4 fill-current"></i>
+                </div>
+                <p class="text-sm text-gray-600 font-medium italic mb-4">"Gila sih, wanginya awet banget dari pagi sampe malem! Temen kantor pada nanyain pake parfum apa. BABA emang mantep!"</p>
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full bg-gray-200 overflow-hidden"><img src="https://i.pravatar.cc/100?img=1" class="w-full h-full object-cover"></div>
+                    <div><p class="text-xs font-bold text-gray-900">Dika S.</p><p class="text-[10px] text-gray-500">Verified Buyer</p></div>
+                </div>
+            </div>
+        </div>
+
+        <footer class="mt-12 text-center pb-8 border-t border-gray-200 pt-8" x-show="!isLoading">
+            <h2 class="font-black text-xl text-gray-300 tracking-widest mb-2">BABA PARFUME</h2>
+            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">© 2026 BABA Parfume Enterprise.</p>
+            <p class="text-[10px] text-gray-400 mt-1">Sihanoukville, Cambodia.</p>
+        </footer>
     </main>
 
-    <div x-show="cartTotalItems > 0 && !isDetailModalOpen && !isCartOpen" 
+    <div x-show="cartTotalItems > 0 && !isDetailModalOpen && !isCartOpen && !isConfirmModalOpen" 
          x-transition:enter="transition ease-out duration-300" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0"
          x-transition:leave="transition ease-in duration-200" x-transition:leave-start="translate-y-0" x-transition:leave-end="translate-y-full"
-         class="fixed bottom-5 left-5 right-5 bg-gray-900 text-white rounded-[1.5rem] shadow-2xl p-4 flex items-center justify-between z-40 border border-gray-800 backdrop-blur-md">
-        <div class="flex items-center space-x-3.5">
-            <div class="w-12 h-12 bg-yellow-500 rounded-full flex items-center justify-center text-gray-900 relative shadow-inner border border-yellow-400">
-                <i data-lucide="shopping-bag" class="w-6 h-6"></i>
-                <span class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full border-2 border-gray-900" x-text="cartTotalItems"></span>
+         class="fixed bottom-6 left-5 right-5 bg-gray-900 text-white rounded-[2rem] shadow-[0_20px_40px_-10px_rgba(0,0,0,0.3)] p-4 flex items-center justify-between z-40 border border-gray-800 backdrop-blur-md">
+        <div class="flex items-center space-x-4 pl-2">
+            <div class="relative">
+                <div class="w-12 h-12 bg-gradient-to-tr from-yellow-600 to-yellow-400 rounded-full flex items-center justify-center text-gray-900 shadow-inner">
+                    <i data-lucide="shopping-bag" class="w-5 h-5"></i>
+                </div>
+                <span class="absolute -top-1 -right-1 bg-red-500 text-white text-[11px] font-black w-6 h-6 flex items-center justify-center rounded-full border-2 border-gray-900 animate-bounce" x-text="cartTotalItems"></span>
             </div>
             <div>
-                <p class="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-0.5">Keranjang</p>
-                <p class="text-lg font-black text-yellow-400 leading-none" x-text="formatMoney(cartTotalPrice)"></p>
+                <p class="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-0.5">Total Keranjang</p>
+                <p class="text-xl font-black text-yellow-400 leading-none" x-text="formatMoney(cartTotalPrice)"></p>
             </div>
         </div>
-        <button @click="isCartOpen = true" class="bg-white text-gray-900 px-6 py-3 rounded-xl text-sm font-black active:scale-95 transition-transform flex items-center shadow-lg">
-            Checkout <i data-lucide="arrow-right" class="w-4 h-4 ml-1.5"></i>
+        <button @click="isCartOpen = true" class="bg-white text-gray-900 px-6 py-3.5 rounded-[1.2rem] text-sm font-black active:scale-95 transition-transform flex items-center shadow-lg">
+            Checkout <i data-lucide="chevron-right" class="w-4 h-4 ml-1.5"></i>
         </button>
     </div>
 
     <div x-show="isDetailModalOpen" style="display: none;" class="fixed inset-0 z-50 flex flex-col bg-white">
         
-        <div class="absolute top-0 left-0 right-0 p-5 flex justify-between items-center z-10 bg-gradient-to-b from-black/60 to-transparent">
+        <div class="absolute top-0 left-0 right-0 p-5 flex justify-between items-center z-10 bg-gradient-to-b from-black/70 to-transparent pb-10">
             <button @click="isDetailModalOpen = false" class="w-10 h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white border border-white/30 active:scale-90 transition-transform">
                 <i data-lucide="arrow-left" class="w-5 h-5"></i>
             </button>
-            <div class="bg-black/40 backdrop-blur-md px-3 py-1 rounded-full text-white text-[10px] font-black uppercase tracking-widest border border-white/20">
+            <div class="bg-black/50 backdrop-blur-md px-4 py-1.5 rounded-full text-white text-[10px] font-black uppercase tracking-widest border border-white/20">
                 Detail Varian
             </div>
-        </div>
+            <div class="w-10 h-10"></div> </div>
 
         <div class="flex-1 overflow-y-auto hide-scrollbar pb-32" x-show="isDetailModalOpen"
              x-transition:enter="transition ease-out duration-300" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0"
              x-transition:leave="transition ease-in duration-200" x-transition:leave-start="translate-y-0" x-transition:leave-end="translate-y-full">
             
-            <div class="w-full h-[50vh] bg-gray-100 relative">
+            <div class="w-full h-[55vh] bg-gray-100 relative">
                 <img :src="selectedProductForDetail.image_url" class="w-full h-full object-cover">
+                <div class="absolute inset-0 bg-gradient-to-t from-gray-900/80 to-transparent"></div>
             </div>
 
-            <div class="p-6 bg-white rounded-t-[2rem] -mt-8 relative z-20">
-                <div class="flex justify-between items-start mb-2">
-                    <div>
-                        <h2 class="text-2xl font-black text-gray-900 leading-tight" x-text="selectedProductForDetail.name"></h2>
-                        <p class="text-sm text-gray-500 mt-1 font-medium" x-text="selectedProductForDetail.tagline"></p>
+            <div class="p-6 bg-white rounded-t-[2.5rem] -mt-10 relative z-20 shadow-[0_-10px_30px_rgba(0,0,0,0.1)]">
+                <div class="mb-6">
+                    <div class="flex items-center gap-2 mb-2">
+                        <template x-if="selectedProductForDetail.category_id === 1">
+                            <span class="bg-yellow-400 text-gray-900 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded shadow-sm">Hot Item</span>
+                        </template>
+                        <span class="bg-gray-100 text-gray-600 text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded" x-text="'Stok: ' + selectedProductForDetail.stock_quantity"></span>
                     </div>
+                    <h2 class="text-3xl font-black text-gray-900 leading-tight" x-text="selectedProductForDetail.name"></h2>
+                    <p class="text-sm text-gray-500 mt-1.5 font-medium" x-text="selectedProductForDetail.tagline"></p>
                 </div>
 
-                <div class="flex items-center space-x-4 mt-4 mb-6">
-                    <p class="text-2xl font-black text-green-600" x-text="formatMoney(selectedProductForDetail.discounted_price)"></p>
-                    <p class="text-sm text-gray-400 line-through font-bold" x-text="formatMoney(selectedProductForDetail.original_price)"></p>
+                <div class="flex items-center space-x-4 mb-8 p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                    <div>
+                        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Harga Spesial</p>
+                        <div class="flex items-end gap-3">
+                            <p class="text-3xl font-black text-emerald-600 leading-none" x-text="formatMoney(selectedProductForDetail.discounted_price)"></p>
+                            <p class="text-sm text-gray-400 line-through font-bold pb-1" x-text="formatMoney(selectedProductForDetail.original_price)"></p>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-3 mb-8">
-                    <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                        <i data-lucide="clock" class="w-5 h-5 text-yellow-500 mb-2"></i>
+                    <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex flex-col items-center text-center">
+                        <div class="w-10 h-10 bg-yellow-50 rounded-full flex items-center justify-center mb-3"><i data-lucide="clock" class="w-5 h-5 text-yellow-600"></i></div>
                         <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Ketahanan</p>
-                        <p class="text-sm font-black text-gray-800 mt-0.5" x-text="selectedProductForDetail.longevity || '8-12 Jam'"></p>
+                        <p class="text-sm font-black text-gray-900 mt-1" x-text="selectedProductForDetail.longevity || '8-12 Jam'"></p>
                     </div>
-                    <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                        <i data-lucide="sun-moon" class="w-5 h-5 text-blue-500 mb-2"></i>
+                    <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex flex-col items-center text-center">
+                        <div class="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center mb-3"><i data-lucide="sun-moon" class="w-5 h-5 text-blue-600"></i></div>
                         <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Rekomendasi</p>
-                        <p class="text-sm font-black text-gray-800 mt-0.5" x-text="selectedProductForDetail.recommendation || 'All Day'"></p>
+                        <p class="text-sm font-black text-gray-900 mt-1" x-text="selectedProductForDetail.recommendation || 'All Day'"></p>
                     </div>
                 </div>
 
-                <h3 class="text-sm font-black text-gray-900 mb-4 flex items-center"><i data-lucide="layers" class="w-4 h-4 mr-2 text-yellow-500"></i> Piramida Aroma</h3>
-                <div class="space-y-3 mb-8">
-                    <div>
-                        <p class="text-[10px] font-bold text-gray-400 uppercase mb-1.5 ml-1">Top Notes (Awal)</p>
-                        <div class="flex flex-wrap gap-2">
-                            <template x-for="note in selectedProductForDetail.top_notes">
-                                <span class="px-3 py-1.5 bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-lg text-xs font-bold" x-text="note"></span>
-                            </template>
-                            <template x-if="!selectedProductForDetail.top_notes || selectedProductForDetail.top_notes.length === 0">
-                                <span class="text-xs text-gray-400 italic">Rahasia BABA</span>
-                            </template>
+                <div class="bg-gray-900 rounded-[2rem] p-6 text-white mb-8 relative overflow-hidden">
+                    <i data-lucide="layers" class="absolute -right-4 -bottom-4 w-32 h-32 text-gray-800 opacity-50"></i>
+                    <h3 class="text-sm font-black text-white mb-5 flex items-center relative z-10"><i data-lucide="flask-conical" class="w-4 h-4 mr-2 text-yellow-500"></i> Piramida Aroma</h3>
+                    <div class="space-y-4 relative z-10">
+                        <div>
+                            <p class="text-[10px] font-bold text-gray-400 uppercase mb-2">Top Notes (Awal)</p>
+                            <div class="flex flex-wrap gap-2">
+                                <template x-for="note in selectedProductForDetail.top_notes">
+                                    <span class="px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-lg text-xs font-bold text-gray-200" x-text="note"></span>
+                                </template>
+                            </div>
                         </div>
-                    </div>
-                    <div>
-                        <p class="text-[10px] font-bold text-gray-400 uppercase mb-1.5 ml-1">Heart Notes (Tengah)</p>
-                        <div class="flex flex-wrap gap-2">
-                            <template x-for="note in selectedProductForDetail.heart_notes">
-                                <span class="px-3 py-1.5 bg-pink-50 text-pink-700 border border-pink-200 rounded-lg text-xs font-bold" x-text="note"></span>
-                            </template>
+                        <div>
+                            <p class="text-[10px] font-bold text-gray-400 uppercase mb-2">Heart Notes (Tengah)</p>
+                            <div class="flex flex-wrap gap-2">
+                                <template x-for="note in selectedProductForDetail.heart_notes">
+                                    <span class="px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-lg text-xs font-bold text-gray-200" x-text="note"></span>
+                                </template>
+                            </div>
                         </div>
-                    </div>
-                    <div>
-                        <p class="text-[10px] font-bold text-gray-400 uppercase mb-1.5 ml-1">Base Notes (Akhir)</p>
-                        <div class="flex flex-wrap gap-2">
-                            <template x-for="note in selectedProductForDetail.base_notes">
-                                <span class="px-3 py-1.5 bg-gray-100 text-gray-700 border border-gray-200 rounded-lg text-xs font-bold" x-text="note"></span>
-                            </template>
+                        <div>
+                            <p class="text-[10px] font-bold text-gray-400 uppercase mb-2">Base Notes (Akhir)</p>
+                            <div class="flex flex-wrap gap-2">
+                                <template x-for="note in selectedProductForDetail.base_notes">
+                                    <span class="px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-lg text-xs font-bold text-gray-200" x-text="note"></span>
+                                </template>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <h3 class="text-sm font-black text-gray-900 mb-2">Deskripsi Varian</h3>
-                <p class="text-sm text-gray-600 leading-relaxed font-medium" x-text="selectedProductForDetail.description || 'Varian eksklusif dari BABA Parfume yang diracik khusus untuk memancarkan aura kamu.'"></p>
+                <h3 class="text-sm font-black text-gray-900 mb-3 flex items-center"><i data-lucide="align-left" class="w-4 h-4 mr-2 text-gray-400"></i> Deskripsi Varian</h3>
+                <p class="text-sm text-gray-600 leading-relaxed font-medium bg-gray-50 p-4 rounded-2xl border border-gray-100" x-text="selectedProductForDetail.description || 'Varian eksklusif dari BABA Parfume yang diracik khusus untuk memancarkan aura signature kamu di setiap langkah.'"></p>
             </div>
         </div>
 
-        <div class="fixed bottom-0 left-0 right-0 p-5 bg-white border-t border-gray-100 z-20 shadow-[0_-10px_20px_rgba(0,0,0,0.03)]" x-show="isDetailModalOpen" x-transition.opacity>
+        <div class="fixed bottom-0 left-0 right-0 p-5 bg-white/90 backdrop-blur-md border-t border-gray-200 z-20 pb-8" x-show="isDetailModalOpen" x-transition.opacity>
             <button @click="addToCart(selectedProductForDetail); isDetailModalOpen = false;" 
-                    class="w-full bg-gray-900 text-yellow-400 py-4 rounded-2xl font-black text-base active:scale-95 transition-transform flex justify-center items-center space-x-2 shadow-lg">
+                    :disabled="selectedProductForDetail.stock_quantity <= 0"
+                    :class="selectedProductForDetail.stock_quantity <= 0 ? 'bg-gray-300 text-gray-500' : 'bg-gray-900 text-yellow-400 shadow-xl shadow-gray-900/20 active:scale-95'"
+                    class="w-full py-4 rounded-[1.5rem] font-black text-base transition-all flex justify-center items-center space-x-2">
                 <i data-lucide="shopping-bag" class="w-5 h-5"></i>
-                <span>Masukin ke Keranjang</span>
+                <span x-text="selectedProductForDetail.stock_quantity <= 0 ? 'Stok Habis' : 'Tambah ke Keranjang'"></span>
             </button>
         </div>
     </div>
 
     <div x-show="isCartOpen" style="display: none;" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-        <div x-show="isCartOpen" x-transition.opacity class="fixed inset-0 bg-black/60 backdrop-blur-sm" @click="isCartOpen = false"></div>
+        <div x-show="isCartOpen" x-transition.opacity class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm" @click="isCartOpen = false"></div>
         
         <div x-show="isCartOpen" 
              x-transition:enter="transition ease-out duration-300" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0"
              x-transition:leave="transition ease-in duration-200" x-transition:leave-start="translate-y-0" x-transition:leave-end="translate-y-full"
-             class="bg-white w-full sm:max-w-md rounded-t-[2rem] sm:rounded-3xl p-6 relative z-10 max-h-[90vh] flex flex-col shadow-2xl">
+             class="bg-white w-full sm:max-w-md rounded-t-[2.5rem] sm:rounded-3xl p-6 relative z-10 max-h-[90vh] flex flex-col shadow-2xl">
             
             <div class="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6"></div>
 
             <div class="flex justify-between items-center mb-6">
-                <div>
-                    <h2 class="text-2xl font-black text-gray-900">Keranjang 🛍️</h2>
-                </div>
+                <h2 class="text-2xl font-black text-gray-900">Keranjang 🛍️</h2>
                 <button @click="isCartOpen = false" class="p-2 bg-gray-100 text-gray-600 rounded-full active:scale-90 transition-transform"><i data-lucide="x" class="w-5 h-5"></i></button>
             </div>
 
-            <div class="flex-1 overflow-y-auto hide-scrollbar mb-6 -mx-2 px-2 space-y-4">
+            <div x-show="cart.length === 0" class="flex-1 py-10 flex flex-col items-center justify-center text-center">
+                <div class="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mb-4"><i data-lucide="shopping-cart" class="w-10 h-10 text-gray-300"></i></div>
+                <h3 class="font-black text-gray-900 text-lg">Keranjang Masih Kosong</h3>
+                <p class="text-sm text-gray-500 mt-2 font-medium">Yuk cari parfum signature kamu sekarang!</p>
+                <button @click="isCartOpen = false" class="mt-6 bg-gray-900 text-white px-6 py-3 rounded-full text-sm font-bold shadow-md">Belanja Sekarang</button>
+            </div>
+
+            <div x-show="cart.length > 0" class="flex-1 overflow-y-auto hide-scrollbar mb-6 -mx-2 px-2 space-y-4 pb-10">
                 <template x-for="item in cart" :key="item.product.id">
-                    <div class="flex items-center space-x-4 bg-white p-3 rounded-2xl border border-gray-100 shadow-sm">
-                        <img :src="item.product.image_url" class="w-16 h-16 rounded-xl object-cover bg-gray-50">
+                    <div class="flex items-center space-x-4 bg-white p-3 rounded-[1.5rem] border border-gray-100 shadow-sm relative">
+                        <button @click="updateQuantity(item.product.id, -99)" class="absolute -top-2 -right-2 w-6 h-6 bg-red-100 text-red-600 rounded-full flex items-center justify-center border border-white"><i data-lucide="x" class="w-3 h-3"></i></button>
+                        
+                        <img :src="item.product.image_url" class="w-16 h-16 rounded-xl object-cover bg-gray-50 border border-gray-100">
                         <div class="flex-1 min-w-0">
-                            <h4 class="font-bold text-gray-800 text-sm truncate" x-text="item.product.name"></h4>
-                            <p class="text-green-600 font-black text-sm mt-0.5" x-text="formatMoney(item.product.discounted_price)"></p>
+                            <h4 class="font-bold text-gray-900 text-sm truncate" x-text="item.product.name"></h4>
+                            <p class="text-emerald-600 font-black text-sm mt-0.5" x-text="formatMoney(item.product.discounted_price)"></p>
                         </div>
-                        <div class="flex items-center bg-gray-50 border border-gray-200 rounded-lg p-1">
-                            <button @click="updateQuantity(item.product.id, -1)" class="w-7 h-7 flex items-center justify-center text-gray-600 hover:bg-gray-200 rounded-md transition-colors"><i data-lucide="minus" class="w-3 h-3"></i></button>
+                        <div class="flex items-center bg-gray-50 border border-gray-200 rounded-[1rem] p-1">
+                            <button @click="updateQuantity(item.product.id, -1)" class="w-8 h-8 flex items-center justify-center text-gray-600 hover:bg-white rounded-[0.8rem] shadow-sm transition-colors"><i data-lucide="minus" class="w-3 h-3"></i></button>
                             <span class="w-6 text-center text-xs font-black" x-text="item.quantity"></span>
-                            <button @click="updateQuantity(item.product.id, 1)" class="w-7 h-7 flex items-center justify-center text-gray-600 hover:bg-gray-200 rounded-md transition-colors"><i data-lucide="plus" class="w-3 h-3"></i></button>
+                            <button @click="updateQuantity(item.product.id, 1)" class="w-8 h-8 flex items-center justify-center text-gray-900 hover:bg-white rounded-[0.8rem] shadow-sm transition-colors"><i data-lucide="plus" class="w-3 h-3"></i></button>
                         </div>
                     </div>
                 </template>
                 
                 <div class="border-t border-gray-200 border-dashed my-6"></div>
 
-                <h3 class="font-black text-gray-900 mb-4 flex items-center"><i data-lucide="file-text" class="w-4 h-4 mr-2 text-yellow-500"></i> Data Pengiriman</h3>
+                <h3 class="font-black text-gray-900 mb-4 flex items-center"><i data-lucide="map-pin" class="w-4 h-4 mr-2 text-yellow-500"></i> Info Pengiriman</h3>
                 
-                <div class="mb-4">
-                    <label class="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Nama Lengkap <span class="text-red-500">*</span></label>
-                    <input type="text" x-model="checkoutForm.fullName" placeholder="Masukkan nama kamu..." class="w-full bg-gray-50 border border-gray-200 p-3.5 rounded-xl text-sm font-medium focus:outline-none focus:border-yellow-400 focus:bg-white transition-colors" :class="formErrors.name ? 'border-red-400 bg-red-50' : ''">
-                    <p x-show="formErrors.name" class="text-xs text-red-500 font-bold mt-1.5"><i data-lucide="alert-circle" class="w-3 h-3 inline mr-1"></i>Nama wajib diisi ya kak!</p>
-                </div>
+                <div class="space-y-4 mb-6">
+                    <div>
+                        <label class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block pl-1">Nama Penerima <span class="text-red-500">*</span></label>
+                        <div class="relative">
+                            <i data-lucide="user" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
+                            <input type="text" x-model="checkoutForm.fullName" placeholder="Nama Lengkap" class="w-full bg-gray-50 border border-gray-200 pl-11 pr-4 py-3.5 rounded-xl text-sm font-medium focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100 focus:bg-white transition-colors" :class="formErrors.name ? 'border-red-400 bg-red-50' : ''">
+                        </div>
+                        <p x-show="formErrors.name" class="text-xs text-red-500 font-bold mt-1.5 pl-1"><i data-lucide="alert-circle" class="w-3 h-3 inline mr-1"></i>Nama wajib diisi ya kak!</p>
+                    </div>
 
-                <div class="mb-6">
-                    <label class="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Lokasi / Alamat Lengkap <span class="text-red-500">*</span></label>
-                    <textarea x-model="checkoutForm.address" rows="3" placeholder="Jalan, RT/RW, Patokan rumah..." class="w-full bg-gray-50 border border-gray-200 p-3.5 rounded-xl text-sm font-medium focus:outline-none focus:border-yellow-400 focus:bg-white transition-colors" :class="formErrors.address ? 'border-red-400 bg-red-50' : ''"></textarea>
-                    <p x-show="formErrors.address" class="text-xs text-red-500 font-bold mt-1.5"><i data-lucide="alert-circle" class="w-3 h-3 inline mr-1"></i>Alamat ga boleh kosong dong!</p>
+                    <div>
+                        <label class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block pl-1">Alamat Lengkap <span class="text-red-500">*</span></label>
+                        <textarea x-model="checkoutForm.address" rows="3" placeholder="Jalan, No Rumah, Patokan..." class="w-full bg-gray-50 border border-gray-200 p-4 rounded-xl text-sm font-medium focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100 focus:bg-white transition-colors" :class="formErrors.address ? 'border-red-400 bg-red-50' : ''"></textarea>
+                        <p x-show="formErrors.address" class="text-xs text-red-500 font-bold mt-1.5 pl-1"><i data-lucide="alert-circle" class="w-3 h-3 inline mr-1"></i>Alamat pengiriman ga boleh kosong!</p>
+                    </div>
                 </div>
 
                 <h3 class="font-black text-gray-900 mb-3 flex items-center"><i data-lucide="wallet" class="w-4 h-4 mr-2 text-yellow-500"></i> Metode Pembayaran</h3>
-                <p x-show="formErrors.payment" class="text-xs text-red-500 font-bold mb-2"><i data-lucide="alert-circle" class="w-3 h-3 inline mr-1"></i>Pilih salah satu cara bayar ya kak.</p>
+                <p x-show="formErrors.payment" class="text-xs text-red-500 font-bold mb-3 pl-1"><i data-lucide="alert-circle" class="w-3 h-3 inline mr-1"></i>Kakak belum pilih cara bayar nih.</p>
                 
                 <div class="space-y-3 mb-6">
-                    <label class="flex items-center p-4 border rounded-xl cursor-pointer transition-all" :class="checkoutForm.paymentMethod === 'COD' ? 'border-yellow-500 bg-yellow-50' : 'border-gray-200 bg-white'">
-                        <div class="w-5 h-5 rounded-full border-2 flex items-center justify-center mr-3" :class="checkoutForm.paymentMethod === 'COD' ? 'border-yellow-500' : 'border-gray-300'">
-                            <div class="w-2.5 h-2.5 bg-yellow-500 rounded-full" x-show="checkoutForm.paymentMethod === 'COD'"></div>
+                    <label class="flex items-center p-4 border rounded-[1.2rem] cursor-pointer transition-all" :class="checkoutForm.paymentMethod === 'COD' ? 'border-yellow-500 bg-yellow-50/50 ring-2 ring-yellow-100' : 'border-gray-200 bg-white hover:bg-gray-50'">
+                        <div class="w-5 h-5 rounded-full border-2 flex items-center justify-center mr-3 flex-shrink-0" :class="checkoutForm.paymentMethod === 'COD' ? 'border-yellow-500' : 'border-gray-300'">
+                            <div class="w-2.5 h-2.5 bg-yellow-500 rounded-full transition-transform duration-200" :class="checkoutForm.paymentMethod === 'COD' ? 'scale-100' : 'scale-0'"></div>
                         </div>
                         <input type="radio" value="COD" x-model="checkoutForm.paymentMethod" class="hidden">
                         <div class="flex-1">
                             <p class="font-bold text-gray-900 text-sm">Cash on Delivery (COD)</p>
-                            <p class="text-[10px] text-gray-500 font-medium">Bayar di tempat saat barang sampai.</p>
+                            <p class="text-[10px] text-gray-500 font-medium mt-0.5">Bayar cash langsung ke kurir.</p>
                         </div>
-                        <i data-lucide="truck" class="w-5 h-5 text-gray-400"></i>
+                        <div class="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center"><i data-lucide="truck" class="w-5 h-5 text-yellow-600"></i></div>
                     </label>
 
-                    <label class="flex items-center p-4 border rounded-xl cursor-pointer transition-all" :class="checkoutForm.paymentMethod === 'BCA' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'">
-                        <div class="w-5 h-5 rounded-full border-2 flex items-center justify-center mr-3" :class="checkoutForm.paymentMethod === 'BCA' ? 'border-blue-500' : 'border-gray-300'">
-                            <div class="w-2.5 h-2.5 bg-blue-500 rounded-full" x-show="checkoutForm.paymentMethod === 'BCA'"></div>
+                    <label class="flex items-center p-4 border rounded-[1.2rem] cursor-pointer transition-all" :class="checkoutForm.paymentMethod === 'BCA' ? 'border-blue-500 bg-blue-50/50 ring-2 ring-blue-100' : 'border-gray-200 bg-white hover:bg-gray-50'">
+                        <div class="w-5 h-5 rounded-full border-2 flex items-center justify-center mr-3 flex-shrink-0" :class="checkoutForm.paymentMethod === 'BCA' ? 'border-blue-500' : 'border-gray-300'">
+                            <div class="w-2.5 h-2.5 bg-blue-500 rounded-full transition-transform duration-200" :class="checkoutForm.paymentMethod === 'BCA' ? 'scale-100' : 'scale-0'"></div>
                         </div>
                         <input type="radio" value="BCA" x-model="checkoutForm.paymentMethod" class="hidden">
                         <div class="flex-1">
                             <p class="font-bold text-gray-900 text-sm">Transfer Bank (BCA)</p>
-                            <p class="text-[10px] text-gray-500 font-medium">Rekening IDR (Rupiah).</p>
+                            <p class="text-[10px] text-gray-500 font-medium mt-0.5">Rekening IDR (Rupiah).</p>
                         </div>
-                        <div class="text-blue-800 font-black italic text-sm tracking-tighter">BCA</div>
+                        <div class="text-blue-800 font-black italic text-sm tracking-tighter bg-blue-100 px-3 py-1.5 rounded-lg">BCA</div>
                     </label>
 
-                    <label class="flex items-center p-4 border rounded-xl cursor-pointer transition-all" :class="checkoutForm.paymentMethod === 'ABA' ? 'border-teal-500 bg-teal-50' : 'border-gray-200 bg-white'">
-                        <div class="w-5 h-5 rounded-full border-2 flex items-center justify-center mr-3" :class="checkoutForm.paymentMethod === 'ABA' ? 'border-teal-500' : 'border-gray-300'">
-                            <div class="w-2.5 h-2.5 bg-teal-500 rounded-full" x-show="checkoutForm.paymentMethod === 'ABA'"></div>
+                    <label class="flex items-center p-4 border rounded-[1.2rem] cursor-pointer transition-all" :class="checkoutForm.paymentMethod === 'ABA' ? 'border-teal-500 bg-teal-50/50 ring-2 ring-teal-100' : 'border-gray-200 bg-white hover:bg-gray-50'">
+                        <div class="w-5 h-5 rounded-full border-2 flex items-center justify-center mr-3 flex-shrink-0" :class="checkoutForm.paymentMethod === 'ABA' ? 'border-teal-500' : 'border-gray-300'">
+                            <div class="w-2.5 h-2.5 bg-teal-500 rounded-full transition-transform duration-200" :class="checkoutForm.paymentMethod === 'ABA' ? 'scale-100' : 'scale-0'"></div>
                         </div>
                         <input type="radio" value="ABA" x-model="checkoutForm.paymentMethod" class="hidden">
                         <div class="flex-1">
-                            <p class="font-bold text-gray-900 text-sm">ABA Bank (Cambodia)</p>
-                            <p class="text-[10px] text-gray-500 font-medium">Transfer USD via ABA Mobile.</p>
+                            <p class="font-bold text-gray-900 text-sm">ABA Bank (Kamboja)</p>
+                            <p class="text-[10px] text-gray-500 font-medium mt-0.5">Transfer USD via ABA Mobile.</p>
                         </div>
-                        <div class="bg-teal-600 text-white font-bold text-[10px] px-2 py-1 rounded">ABA</div>
+                        <div class="bg-teal-600 text-white font-bold text-[10px] px-3 py-1.5 rounded-lg uppercase tracking-wider">ABA</div>
                     </label>
                 </div>
             </div>
 
-            <div class="bg-white pt-2 border-t border-gray-100">
-                <div class="flex justify-between items-center mb-4">
-                    <span class="text-gray-500 font-bold text-sm uppercase tracking-widest">Total Bayar</span>
-                    <span class="text-2xl font-black text-gray-900" x-text="formatMoney(cartTotalPrice)"></span>
+            <div x-show="cart.length > 0" class="bg-white pt-4 border-t border-gray-100 mt-auto">
+                <div class="flex justify-between items-end mb-4 px-1">
+                    <div>
+                        <span class="text-gray-400 font-bold text-[10px] uppercase tracking-widest block mb-1">Total Tagihan</span>
+                        <span class="text-sm font-bold text-gray-500"><span x-text="cartTotalItems"></span> Item</span>
+                    </div>
+                    <span class="text-3xl font-black text-emerald-600 leading-none" x-text="formatMoney(cartTotalPrice)"></span>
                 </div>
-                <button @click="validateCheckout()" class="w-full bg-gray-900 text-yellow-400 py-4 rounded-2xl font-black text-lg active:scale-95 transition-all flex justify-center items-center space-x-2 shadow-xl shadow-gray-900/20">
-                    <span>Lanjut Pesan Sekarang</span>
+                <button @click="validateCheckout()" class="w-full bg-gray-900 text-white py-4 rounded-[1.5rem] font-black text-lg active:scale-95 transition-all flex justify-center items-center space-x-2 shadow-[0_10px_20px_-10px_rgba(0,0,0,0.5)] hover:bg-gray-800">
+                    <span>Lanjut Pesan</span>
+                    <i data-lucide="arrow-right" class="w-5 h-5"></i>
                 </button>
             </div>
 
@@ -407,30 +498,40 @@
     </div>
 
     <div x-show="isConfirmModalOpen" style="display: none;" class="fixed inset-0 z-[60] flex items-center justify-center p-5">
-        <div x-show="isConfirmModalOpen" x-transition.opacity class="fixed inset-0 bg-black/80 backdrop-blur-sm" @click="isConfirmModalOpen = false"></div>
+        <div x-show="isConfirmModalOpen" x-transition.opacity class="fixed inset-0 bg-gray-900/80 backdrop-blur-md" @click="isConfirmModalOpen = false"></div>
         
         <div x-show="isConfirmModalOpen" 
-             x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 scale-90" x-transition:enter-end="opacity-100 scale-100"
-             x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-90"
-             class="bg-white rounded-3xl p-6 w-full max-w-sm relative z-10 text-center shadow-2xl">
+             x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 scale-90 translate-y-4" x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+             x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 scale-100 translate-y-0" x-transition:leave-end="opacity-0 scale-90 translate-y-4"
+             class="bg-white rounded-[2rem] p-6 w-full max-w-sm relative z-10 text-center shadow-2xl border border-gray-100">
             
-            <div class="w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-white shadow-md -mt-12">
+            <div class="w-24 h-24 bg-gradient-to-tr from-yellow-100 to-amber-50 rounded-full flex items-center justify-center mx-auto mb-5 border-4 border-white shadow-[0_10px_20px_-10px_rgba(234,179,8,0.5)] -mt-16">
                 <i data-lucide="bell-ring" class="w-10 h-10 text-yellow-600 animate-bounce"></i>
             </div>
             
-            <h3 class="text-2xl font-black text-gray-900 mb-2">Yakin Pesan Sekarang?</h3>
-            <p class="text-sm text-gray-500 mb-6 font-medium">Pesanan kamu bakal langsung diterusin ke Admin BABA Parfume lewat Telegram buat diproses.</p>
+            <h3 class="text-2xl font-black text-gray-900 mb-2">Proses Sekarang?</h3>
+            <p class="text-sm text-gray-500 mb-6 font-medium leading-relaxed">Pesanan kamu bakal langsung masuk ke sistem dan Admin BABA akan ngabarin kamu via Telegram.</p>
             
-            <div class="bg-gray-50 rounded-xl p-4 mb-6 text-left border border-gray-100">
-                <p class="text-xs text-gray-400 font-bold uppercase mb-1">Rincian Singkat</p>
-                <p class="font-bold text-gray-800 text-sm mb-1" x-text="checkoutForm.fullName"></p>
-                <p class="font-bold text-green-600 text-base mb-1" x-text="formatMoney(cartTotalPrice) + ' (' + checkoutForm.paymentMethod + ')'"></p>
-                <p class="text-xs text-gray-600 truncate" x-text="cartTotalItems + ' Varian Parfum'"></p>
+            <div class="bg-gray-50 rounded-2xl p-5 mb-8 text-left border border-gray-200 shadow-inner">
+                <div class="flex justify-between items-center mb-3 pb-3 border-b border-gray-200">
+                    <p class="text-xs text-gray-400 font-bold uppercase tracking-widest">Penerima</p>
+                    <p class="font-bold text-gray-900 text-sm truncate max-w-[150px]" x-text="checkoutForm.fullName"></p>
+                </div>
+                <div class="flex justify-between items-center mb-3 pb-3 border-b border-gray-200">
+                    <p class="text-xs text-gray-400 font-bold uppercase tracking-widest">Tagihan</p>
+                    <p class="font-black text-emerald-600 text-lg" x-text="formatMoney(cartTotalPrice)"></p>
+                </div>
+                <div class="flex justify-between items-center">
+                    <p class="text-xs text-gray-400 font-bold uppercase tracking-widest">Metode</p>
+                    <p class="font-bold text-gray-900 text-sm bg-white px-3 py-1 rounded-lg border border-gray-200" x-text="checkoutForm.paymentMethod"></p>
+                </div>
             </div>
 
             <div class="flex space-x-3">
-                <button @click="isConfirmModalOpen = false" class="flex-1 py-3.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors">Cek Lagi</button>
-                <button @click="processFinalCheckout()" class="flex-1 py-3.5 bg-green-500 text-white font-black rounded-xl hover:bg-green-600 transition-colors shadow-lg shadow-green-500/30">Ya, Kirim!</button>
+                <button @click="isConfirmModalOpen = false" class="flex-1 py-4 bg-gray-100 text-gray-700 font-bold rounded-[1.2rem] hover:bg-gray-200 transition-colors">Cek Lagi</button>
+                <button @click="processFinalCheckout($event)" class="flex-1 py-4 bg-gray-900 text-yellow-400 font-black rounded-[1.2rem] hover:bg-gray-800 transition-all shadow-[0_10px_20px_-10px_rgba(0,0,0,0.5)] active:scale-95 flex justify-center items-center">
+                    <span>Kirim Pesanan</span>
+                </button>
             </div>
         </div>
     </div>
@@ -439,54 +540,43 @@
     <script>
         function babaStore() {
             return {
+                // STATES
                 products: [],
                 cart: [],
                 searchQuery: '',
                 activeCategory: 'Semua',
                 isLoading: true,
+                toasts: [],
+                toastIdCounter: 0,
                 
-                // Modal States
+                // MODALS
                 isCartOpen: false,
                 isDetailModalOpen: false,
                 isConfirmModalOpen: false,
                 showUSP: false,
                 
-                // Detail Target
                 selectedProductForDetail: {},
                 
-                // Form & Validation
-                checkoutForm: {
-                    fullName: '',
-                    address: '',
-                    paymentMethod: ''
-                },
-                formErrors: {
-                    name: false,
-                    address: false,
-                    payment: false
-                },
+                // FORM
+                checkoutForm: { fullName: '', address: '', paymentMethod: '' },
+                formErrors: { name: false, address: false, payment: false },
                 
-                tgUser: {
-                    first_name: 'Kamu',
-                    username: '',
-                    photo_url: '',
-                    id: ''
-                },
+                // TELEGRAM USER
+                tgUser: { first_name: 'Kamu', username: '', photo_url: '', id: '' },
 
                 initData() {
-                    // INISIASI TELEGRAM WEB APP
+                    // INIT TELEGRAM API
                     if (window.Telegram && window.Telegram.WebApp) {
                         const tg = window.Telegram.WebApp;
                         tg.ready();
                         tg.expand();
                         if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
                             this.tgUser = tg.initDataUnsafe.user;
-                            // Pre-fill form nama otomatis dari data Telegram
                             this.checkoutForm.fullName = this.tgUser.first_name + (this.tgUser.last_name ? ' ' + this.tgUser.last_name : '');
                         }
                     }
 
-                    // FETCH DATA DARI MAIN.PY
+                    // FETCH DATA DARI DATABASE (main.py)
                     fetch('/api/v1/products/live')
                         .then(res => res.json())
                         .then(data => {
@@ -494,18 +584,48 @@
                                 this.products = data.data;
                             }
                         })
-                        .catch(err => console.error("Error Fetch:", err))
+                        .catch(err => {
+                            console.error("Error Fetch:", err);
+                            this.showToast('Gagal memuat katalog parfum', 'error');
+                        })
                         .finally(() => {
-                            this.isLoading = false;
-                            // Re-init lucide icons setelah render data
-                            setTimeout(() => lucide.createIcons(), 100);
+                            // Simulasi delay dikit biar animasi skeleton keliatan elegan
+                            setTimeout(() => {
+                                this.isLoading = false;
+                                setTimeout(() => lucide.createIcons(), 50);
+                            }, 800);
                         });
                 },
 
+                // --- TOAST SYSTEM (ENTERPRISE GRADE) ---
+                showToast(message, type = 'success') {
+                    const id = this.toastIdCounter++;
+                    this.toasts.push({ id, message, type, visible: true });
+                    
+                    // Trigger Haptic Feedback
+                    if (window.Telegram && window.Telegram.WebApp.HapticFeedback) {
+                        if(type === 'success') window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+                        else if(type === 'error') window.Telegram.WebApp.HapticFeedback.notificationOccurred('error');
+                        else window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
+                    }
+
+                    // Auto hide after 3 seconds
+                    setTimeout(() => {
+                        const index = this.toasts.findIndex(t => t.id === id);
+                        if (index > -1) {
+                            this.toasts[index].visible = false;
+                            // Remove from DOM after animation finishes
+                            setTimeout(() => {
+                                this.toasts = this.toasts.filter(t => t.id !== id);
+                            }, 300);
+                        }
+                    }, 3000);
+                },
+
+                // --- FILTER LOGIC ---
                 filteredProducts() {
                     let result = this.products;
 
-                    // FILTER KATEGORI
                     if (this.activeCategory !== 'Semua') {
                         if (this.activeCategory === 'Top Seller') {
                             result = result.filter(p => p.category_id === 1 || (p.tags && p.tags.some(t => t.toLowerCase() === 'top seller')));
@@ -514,7 +634,6 @@
                         }
                     }
 
-                    // FILTER SEARCH
                     if (this.searchQuery) {
                         const q = this.searchQuery.toLowerCase();
                         result = result.filter(p => 
@@ -524,8 +643,7 @@
                         );
                     }
 
-                    // SORTING LOGIC: HABIS DI BAWAH, TOP SELLER DI ATAS
-                    result = result.sort((a, b) => {
+                    return result.sort((a, b) => {
                         const aHasStock = a.stock_quantity > 0;
                         const bHasStock = b.stock_quantity > 0;
                         
@@ -539,30 +657,33 @@
                         }
                         return b.stock_quantity - a.stock_quantity;
                     });
-
-                    return result;
                 },
 
+                // --- UI ACTIONS ---
                 openDetail(product) {
                     this.selectedProductForDetail = product;
                     this.isDetailModalOpen = true;
-                    // Re-render icons yang ada di dalam modal
                     setTimeout(() => lucide.createIcons(), 50);
                 },
 
+                // --- CART LOGIC ---
                 addToCart(product) {
-                    if(product.stock_quantity <= 0) return;
+                    if(product.stock_quantity <= 0) {
+                        this.showToast('Maaf, stok varian ini lagi kosong!', 'error');
+                        return;
+                    }
                     
                     const existing = this.cart.find(item => item.product.id === product.id);
                     if (existing) {
-                        if (existing.quantity < product.stock_quantity) existing.quantity++;
+                        if (existing.quantity < product.stock_quantity) {
+                            existing.quantity++;
+                            this.showToast('+1 ditambahkan ke keranjang', 'success');
+                        } else {
+                            this.showToast('Maksimal stok tercapai!', 'error');
+                        }
                     } else {
                         this.cart.push({ product: product, quantity: 1 });
-                    }
-                    
-                    // GETARAN HP TELEGRAM
-                    if (window.Telegram && window.Telegram.WebApp.HapticFeedback) {
-                        window.Telegram.WebApp.HapticFeedback.impactOccurred('medium');
+                        this.showToast(product.name + ' masuk keranjang!', 'success');
                     }
                 },
 
@@ -571,50 +692,47 @@
                     if (index > -1) {
                         const item = this.cart[index];
                         const newQ = item.quantity + delta;
+                        
+                        if (delta === -99) { // Code for trash bin delete
+                            this.cart.splice(index, 1);
+                            this.showToast('Varian dihapus dari keranjang', 'info');
+                            if(this.cart.length === 0) this.isCartOpen = false;
+                            return;
+                        }
+
                         if (newQ > 0 && newQ <= item.product.stock_quantity) {
                             item.quantity = newQ;
+                        } else if (newQ > item.product.stock_quantity) {
+                            this.showToast('Maksimal stok cuma ' + item.product.stock_quantity, 'error');
                         } else if (newQ <= 0) {
                             this.cart.splice(index, 1);
+                            if(this.cart.length === 0) this.isCartOpen = false;
                         }
                     }
                 },
 
-                get cartTotalItems() {
-                    return this.cart.reduce((total, item) => total + item.quantity, 0);
-                },
+                get cartTotalItems() { return this.cart.reduce((total, item) => total + item.quantity, 0); },
+                get cartTotalPrice() { return this.cart.reduce((total, item) => total + (item.product.discounted_price * item.quantity), 0); },
+                formatMoney(amount) { return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount); },
 
-                get cartTotalPrice() {
-                    return this.cart.reduce((total, item) => total + (item.product.discounted_price * item.quantity), 0);
-                },
-
-                formatMoney(amount) {
-                    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
-                },
-
-                // STEP 1: VALIDASI FORM SEBELUM BUKA MODAL KONFIRMASI
+                // --- CHECKOUT LOGIC (ENTERPRISE FETCH API) ---
                 validateCheckout() {
                     this.formErrors.name = this.checkoutForm.fullName.trim() === '';
                     this.formErrors.address = this.checkoutForm.address.trim() === '';
                     this.formErrors.payment = this.checkoutForm.paymentMethod === '';
 
                     if (!this.formErrors.name && !this.formErrors.address && !this.formErrors.payment) {
-                        // Kalo lolos validasi, buka modal "Yakin?"
                         this.isConfirmModalOpen = true;
                         if (window.Telegram && window.Telegram.WebApp.HapticFeedback) {
                             window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
                         }
                     } else {
-                        // Kalo gagal validasi, geter error
-                        if (window.Telegram && window.Telegram.WebApp.HapticFeedback) {
-                            window.Telegram.WebApp.HapticFeedback.notificationOccurred('error');
-                        }
-                        // Scroll dikit ke atas biar errornya keliatan (opsional)
+                        this.showToast('Lengkapi data pengiriman & bayar ya kak!', 'error');
                         const cartContainer = document.querySelector('.overflow-y-auto');
-                        if(cartContainer) cartContainer.scrollTo({top: 100, behavior: 'smooth'});
+                        if(cartContainer) cartContainer.scrollTo({top: 500, behavior: 'smooth'});
                     }
                 },
 
-                // STEP 2: PROSES KIRIM DATA (JALUR API ENTERPRISE)
                 processFinalCheckout(event) {
                     const payload = {
                         action: 'checkout',
@@ -635,13 +753,14 @@
                         total_amount: this.cartTotalPrice
                     };
 
-                    // Animasi teks tombol berubah biar keren
+                    // Loading State on Button
                     const btn = event.currentTarget || event.target;
-                    const originalText = btn.innerText;
-                    btn.innerText = "Memproses Pesanan...";
+                    const originalText = btn.innerHTML;
+                    btn.innerHTML = '<i data-lucide="loader-2" class="w-5 h-5 animate-spin mr-2"></i> Memproses...';
+                    lucide.createIcons();
                     btn.disabled = true;
 
-                    // Tembak data langsung ke main.py pakai Fetch API
+                    // Tembak Data ke main.py via Fetch API
                     fetch('/api/v1/checkout', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -650,16 +769,15 @@
                     .then(response => response.json())
                     .then(data => {
                         if (data.status === 'success') {
-                            // Bikin HP geter sukses
                             if (window.Telegram && window.Telegram.WebApp.HapticFeedback) {
                                 window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
                             }
                             
-                            // Tutup Mini App, biar user bisa liat struk di chat bot
+                            // Tutup app biar bot bisa ngirim resi ke chat
                             if (window.Telegram && window.Telegram.WebApp) {
                                 window.Telegram.WebApp.close();
                             } else {
-                                alert("Mantap! Pesanan Berhasil dengan Resi: " + data.order_number);
+                                this.showToast('Mantap! Pesanan Berhasil: ' + data.order_number, 'success');
                                 this.isConfirmModalOpen = false;
                                 this.isCartOpen = false;
                                 this.cart = [];
@@ -670,11 +788,10 @@
                     })
                     .catch(error => {
                         console.error("Checkout Error:", error);
-                        alert("Waduh kak, sistem lagi sibuk. Coba lagi ya! \nDetail: " + error.message);
-                        btn.innerText = originalText;
+                        this.showToast('Sistem sibuk: ' + error.message, 'error');
+                        btn.innerHTML = originalText;
                         btn.disabled = false;
                     });
-                }
                 }
             }
         }
