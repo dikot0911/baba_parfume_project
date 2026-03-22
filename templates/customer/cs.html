@@ -159,9 +159,16 @@
                         const tg = window.Telegram.WebApp;
                         tg.ready();
                         tg.expand();
+                        
+                        // Pastikan data user beneran ada
                         if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
                             this.tgUser = tg.initDataUnsafe.user;
+                            console.log("✅ User ID Detected:", this.tgUser.id);
                             this.loadHistory(); 
+                        } else {
+                            // Mode Testing di Browser Biasa (Biar ga error pas lu tes di laptop)
+                            this.tgUser = { first_name: 'Tester', id: 12345678 }; 
+                            console.warn("⚠️ Mode browser detected, using dummy ID");
                         }
                     }
 
@@ -271,8 +278,12 @@
 
                 sendMessage() {
                     const text = this.inputText.trim();
-                    if (!text || this.isTyping || this.chatEnded) return;
-
+                    // TAMBAHIN CEK ID: Kalo ID ga ada, jangan kirim!
+                    if (!text || this.isTyping || this.chatEnded || !this.tgUser.id) {
+                        if(!this.tgUser.id) alert("ID Telegram tidak terdeteksi!");
+                        return;
+                    }
+                    
                     this.resetTimer();
 
                     // UI Update
