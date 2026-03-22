@@ -15,11 +15,13 @@ from aiogram.filters import CommandStart
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 
-# Import Database
+# Import Database (Versi Jujur)
 try:
     from database import supabase
-except ImportError:
-    print("❌ [FATAL ERROR] File database.py tidak ditemukan!")
+    print("✅ [DEBUG] Database berhasil di-load di bot.py")
+except Exception as e:
+    # Bakal ngasih tau lu error aslinya (misal: cannot import name 'supabase')
+    print(f"❌ [FATAL ERROR] Gagal load database di bot.py: {e}")
     supabase = None
 
 # ==============================================================================
