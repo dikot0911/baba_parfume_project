@@ -162,7 +162,8 @@ async def handle_web_app_data(message: Message):
                 "shipping_address": address,
                 "total_amount": total_amount,
                 "status": "Menunggu Pembayaran",
-                "order_source": "Telegram Bot Mini App"
+                "order_source": "Telegram Bot Mini App",
+                "payment_method": payment_method
             }
             order_res = supabase.table("orders").insert(order_payload).execute()
             order_uuid = order_res.data[0].get("id")
