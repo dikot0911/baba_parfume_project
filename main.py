@@ -179,16 +179,6 @@ async def read_root(request: Request):
         "settings": settings_data,  # <--- Biar HTML tau no WA admin & Nama Toko
         "produk": produk_aktif      # <--- Biar HTML bisa langsung nampilin katalog
     })
-@app.post("/api/v1/chat/send")
-async def chat_ai_send(request: Request):
-    data = await request.json()
-    tele_id = data.get("tele_id")
-    user_msg = data.get("message")
-    
-    # Panggil fungsi dari ai_agent.py
-    ai_reply = await get_ai_recommendation(tele_id, user_msg)
-    
-    return {"status": "success", "reply": ai_reply}
 
 @app.post("/api/v1/checkout", tags=["API External"])
 async def api_process_checkout(request: Request):
@@ -637,14 +627,19 @@ async def get_chat_history(tele_id: int):
 
 @app.post("/api/v1/chat/send")
 async def chat_ai_send(request: Request):
-    """Jalur utama ngobrol sama Gemini AI"""
     data = await request.json()
     tele_id = data.get("tele_id")
     user_msg = data.get("message")
     
-    # Panggil fungsi 'sakti' dari ai_agent.py
-    ai_reply = await get_ai_recommendation(tele_id, user_msg)
+    # VALIDASI KRUSIAL: Cek apakah tele_id beneran ada angkanya
+    if not tele_id or str(tele_id).strip() == "":
+        return JSONResponse(
+            status_code=400, 
+            content={"status": "error", "message": "ID Telegram tidak valid (kosong)"}
+        )
     
+    # Lanjut panggil ai_agent
+    ai_reply = await get_ai_recommendation(int(tele_id), user_msg)
     return {"status": "success", "reply": ai_reply}
 
 @app.post("/api/v1/chat/reset")
