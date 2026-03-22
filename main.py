@@ -144,12 +144,41 @@ def normalize_product(item: dict) -> dict:
     }
 
 # ==============================================================================
-# ROUTER 1: CUSTOMER FRONTEND
+# ROUTER 1: CUSTOMER FRONTEND (MINI APP / WEB CUSTOMER)
 # ==============================================================================
 @app.get("/", response_class=HTMLResponse, tags=["Web Customer"])
 async def read_root(request: Request):
-    return templates.TemplateResponse("customer/index.html", {"request": request})
+    # Default setting kalau database lagi ngadat
+    settings_data = {
+        "store_name": "BABA Parfume", 
+        "admin_whatsapp": "", 
+        "checkout_message": "Halo BABA Parfume, saya mau pesan..."
+    }
+    produk_aktif = []
 
+    if supabase:
+        try:
+            # 1. Tarik Info Toko (Nama, WA Admin) dari tabel store_settings
+            res_set = supabase.table("store_settings").select("*").eq("id", 1).single().execute()
+            if res_set.data: 
+                settings_data = res_set.data
+            
+            # 2. Tarik Katalog Produk (Cuma nampilin yang is_active = True aja)
+            res_prod = supabase.table("products").select("*").eq("is_active", True).order("id").execute()
+            
+            # Bersihin datanya pake fungsi normalize_product yang udah kita bikin di atas
+            produk_aktif = [normalize_product(p) for p in (res_prod.data or [])]
+            
+        except Exception as e:
+            print(f"❌ [ERROR LOAD FRONTEND CUSTOMER]: {e}")
+
+    # 3. Lempar semua data mateng ke file index.html
+    return templates.TemplateResponse("customer/index.html", {
+        "request": request, 
+        "settings": settings_data,  # <--- Biar HTML tau no WA admin & Nama Toko
+        "produk": produk_aktif      # <--- Biar HTML bisa langsung nampilin katalog
+    })
+    
 # ==============================================================================
 # ROUTER 2: ADMIN DASHBOARD
 # ==============================================================================
