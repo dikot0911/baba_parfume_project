@@ -70,7 +70,7 @@ async def sync_user_to_db(user):
 # ==============================================================================
 def kb_main_menu() -> InlineKeyboardMarkup:
     web_app_belanja = WebAppInfo(url=WEB_APP_URL)
-    web_app_ai = WebAppInfo(url=f"{WEB_APP_URL}/ai-chat")
+    web_app_ai = WebAppInfo(url=f"{WEB_APP_URL}/cs")
     
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🛍️ PESEN DI SINI (KLIK)", web_app=web_app_belanja)],
