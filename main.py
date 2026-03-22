@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+from ai_agent import get_ai_recommendation
 import uvicorn
 import asyncio
 
@@ -178,6 +179,16 @@ async def read_root(request: Request):
         "settings": settings_data,  # <--- Biar HTML tau no WA admin & Nama Toko
         "produk": produk_aktif      # <--- Biar HTML bisa langsung nampilin katalog
     })
+@app.post("/api/v1/chat/send")
+async def chat_ai_send(request: Request):
+    data = await request.json()
+    tele_id = data.get("tele_id")
+    user_msg = data.get("message")
+    
+    # Panggil fungsi dari ai_agent.py
+    ai_reply = await get_ai_recommendation(tele_id, user_msg)
+    
+    return {"status": "success", "reply": ai_reply}
 
 @app.post("/api/v1/checkout", tags=["API External"])
 async def api_process_checkout(request: Request):
@@ -599,6 +610,108 @@ async def update_settings(
     except Exception as e:
         print(f"❌ [ERROR SETTING]: {e}")
         raise HTTPException(status_code=500, detail="Gagal menyimpan pengaturan.")
+
+# ==============================================================================
+# ROUTER: CUSTOMER AI AGENT (GEMINI ENGINE)
+# ==============================================================================
+
+@app.get("/cs", response_class=HTMLResponse, tags=["Web Customer"])
+async def chat_ai_page(request: Request):
+    """Nampilin halaman chat AI buat pelanggan"""
+    return templates.TemplateResponse("customer/cs.html", {"request": request})
+
+@app.get("/api/v1/chat/history")
+async def get_chat_history(tele_id: int):
+    """Narik riwayat chat aktif biar AI punya ingatan"""
+    try:
+        # Cari ID sesi yang aktif (is_active = True)
+        res_sess = supabase.table("ai_chat_sessions").select("id").eq("telegram_id", tele_id).eq("is_active", True).execute()
+        if not res_sess.data:
+            return {"status": "success", "history": []}
+            
+        sid = res_sess.data[0]['id']
+        res_msg = supabase.table("ai_chat_messages").select("role, content").eq("session_id", sid).order("created_at", asc=True).execute()
+        return {"status": "success", "history": res_msg.data or []}
+    except:
+        return {"status": "success", "history": []}
+
+@app.post("/api/v1/chat/send")
+async def chat_ai_send(request: Request):
+    """Jalur utama ngobrol sama Gemini AI"""
+    data = await request.json()
+    tele_id = data.get("tele_id")
+    user_msg = data.get("message")
+    
+    # Panggil fungsi 'sakti' dari ai_agent.py
+    ai_reply = await get_ai_recommendation(tele_id, user_msg)
+    
+    return {"status": "success", "reply": ai_reply}
+
+@app.post("/api/v1/chat/reset")
+async def chat_reset(request: Request):
+    """Ngereset sesi chatan (user klik tombol 'Akhiri')"""
+    data = await request.json()
+    tele_id = data.get("tele_id")
+    try:
+        supabase.table("ai_chat_sessions").update({"is_active": False}).eq("telegram_id", tele_id).execute()
+        return {"status": "success"}
+    except:
+        return {"status": "error"}
+
+# ==============================================================================
+# ROUTER: ADMIN CS PANEL (INTERCEPT MODE)
+# ==============================================================================
+
+@app.get("/admin/cs", response_class=HTMLResponse, tags=["Admin CRM"])
+async def admin_cs_panel(request: Request):
+    """Halaman Dashboard CS buat lu mantau AI"""
+    return templates.TemplateResponse("admin/cs_management.html", {
+        "request": request, 
+        "pending_count": get_pending_count()
+    })
+
+@app.get("/api/v1/admin/cs/sessions")
+async def api_admin_get_sessions():
+    """Admin narik daftar semua orang yang lagi chatan"""
+    try:
+        # Join ke tabel customers biar dapet nama asli si user
+        res = supabase.table("ai_chat_sessions").select("*, customers(full_name, username)").order("created_at", desc=True).execute()
+        return {"status": "success", "sessions": res.data or []}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.get("/api/v1/admin/cs/messages")
+async def api_admin_get_messages(session_id: int):
+    """Admin ngintip isi percakapan per orang"""
+    try:
+        res = supabase.table("ai_chat_messages").select("*").eq("session_id", session_id).order("created_at", asc=True).execute()
+        return {"status": "success", "messages": res.data or []}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.post("/api/v1/admin/cs/send-manual")
+async def api_admin_send_manual(request: Request):
+    """Fitur Dewa: Lu bales chatan secara manual via Bot"""
+    data = await request.json()
+    sid = data.get("session_id")
+    tele_id = data.get("tele_id")
+    msg_text = data.get("message")
+
+    try:
+        # 1. Catat ke DB sebagai 'admin' biar ada history-nya
+        supabase.table("ai_chat_messages").insert({
+            "session_id": sid, "role": "admin", "content": msg_text
+        }).execute()
+
+        # 2. Kirim beneran ke Telegram si user
+        if BOT_AVAILABLE:
+            from bot import bot as bot_instance
+            # Kirim pake label Admin biar usernya tau itu lu yang bales
+            await bot_instance.send_message(chat_id=tele_id, text=f"👨‍💻 <b>Admin BABA:</b>\n{msg_text}", parse_mode="HTML")
+        
+        return {"status": "success"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 # ==============================================================================
 # ROUTER 6: API EXTERNAL (BUAT FRONTEND / MINI APP TELEGRAM)
