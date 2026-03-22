@@ -4,201 +4,270 @@
 {% block header %}Dashboard Overview{% endblock %}
 
 {% block content %}
+<style>
+    /* ANIMASI CARDS MUNCUL */
+    @keyframes slideUpFade {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-card { animation: slideUpFade 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
+    .delay-100 { animation-delay: 100ms; }
+    .delay-200 { animation-delay: 200ms; }
+    .delay-300 { animation-delay: 300ms; }
+    
+    /* SCROLLBAR CUSTOM UNTUK TABEL MINI */
+    .mini-table-scroll::-webkit-scrollbar { height: 4px; width: 4px; }
+    .mini-table-scroll::-webkit-scrollbar-track { background: #f8fafc; }
+    .mini-table-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+</style>
+
 <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
-    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between hover:shadow-md transition-shadow">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-sm font-medium text-gray-500">Pendapatan (Bulan Ini)</h3>
-            <div class="p-2 bg-green-50 text-green-600 rounded-lg">
-                <i data-lucide="dollar-sign" class="w-5 h-5"></i>
+    
+    <div class="bg-white p-6 rounded-[1.5rem] shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] border border-gray-100 flex flex-col justify-between hover:-translate-y-1 hover:shadow-lg transition-all animate-card">
+        <div class="flex items-start justify-between mb-2">
+            <div>
+                <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Pendapatan</h3>
+                <h2 class="text-3xl font-black text-gray-900">{{ metrics.total_revenue | currency }}</h2>
+            </div>
+            <div class="p-3 bg-gradient-to-br from-emerald-400 to-emerald-600 text-white rounded-xl shadow-md shadow-emerald-500/30">
+                <i data-lucide="banknote" class="w-5 h-5"></i>
             </div>
         </div>
-        <div>
-            <h2 class="text-3xl font-bold text-gray-800">$1,240.50</h2>
-            <p class="text-sm text-green-600 flex items-center mt-2 font-medium">
-                <i data-lucide="trending-up" class="w-4 h-4 mr-1"></i> +12.5% <span class="text-gray-400 ml-1 font-normal">dari bulan lalu</span>
+        <div class="pt-4 border-t border-gray-50 mt-2">
+            <p class="text-xs font-bold flex items-center text-emerald-600">
+                <i data-lucide="trending-up" class="w-3.5 h-3.5 mr-1"></i> <span x-text="'+' + {{ metrics.revenue_growth | default(0) }} + '%'"></span>
+                <span class="text-gray-400 font-medium ml-1.5">Bulan ini</span>
             </p>
         </div>
     </div>
     
-    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between hover:shadow-md transition-shadow">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-sm font-medium text-gray-500">Total Pesanan</h3>
-            <div class="p-2 bg-blue-50 text-blue-600 rounded-lg">
+    <div class="bg-white p-6 rounded-[1.5rem] shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] border border-gray-100 flex flex-col justify-between hover:-translate-y-1 hover:shadow-lg transition-all animate-card delay-100">
+        <div class="flex items-start justify-between mb-2">
+            <div>
+                <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Pesanan</h3>
+                <h2 class="text-3xl font-black text-gray-900">{{ metrics.total_orders | default(0) }}</h2>
+            </div>
+            <div class="p-3 bg-gradient-to-br from-blue-400 to-blue-600 text-white rounded-xl shadow-md shadow-blue-500/30">
                 <i data-lucide="shopping-bag" class="w-5 h-5"></i>
             </div>
         </div>
-        <div>
-            <h2 class="text-3xl font-bold text-gray-800">145</h2>
-            <p class="text-sm text-blue-600 flex items-center mt-2 font-medium">
-                <i data-lucide="trending-up" class="w-4 h-4 mr-1"></i> +8.2% <span class="text-gray-400 ml-1 font-normal">dari bulan lalu</span>
+        <div class="pt-4 border-t border-gray-50 mt-2 flex justify-between items-center">
+            <p class="text-xs font-bold flex items-center text-blue-600">
+                <i data-lucide="activity" class="w-3.5 h-3.5 mr-1"></i> <span>Terkonfirmasi</span>
             </p>
+            <span class="text-xs font-black bg-blue-50 text-blue-600 px-2 py-0.5 rounded">{{ metrics.completed_orders | default(0) }} Selesai</span>
         </div>
     </div>
 
-    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between hover:shadow-md transition-shadow">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-sm font-medium text-gray-500">Pelanggan Aktif</h3>
-            <div class="p-2 bg-purple-50 text-purple-600 rounded-lg">
+    <div class="bg-white p-6 rounded-[1.5rem] shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] border border-gray-100 flex flex-col justify-between hover:-translate-y-1 hover:shadow-lg transition-all animate-card delay-200">
+        <div class="flex items-start justify-between mb-2">
+            <div>
+                <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Pelanggan Aktif</h3>
+                <h2 class="text-3xl font-black text-gray-900">{{ metrics.total_customers | default(0) }}</h2>
+            </div>
+            <div class="p-3 bg-gradient-to-br from-purple-400 to-purple-600 text-white rounded-xl shadow-md shadow-purple-500/30">
                 <i data-lucide="users" class="w-5 h-5"></i>
             </div>
         </div>
-        <div>
-            <h2 class="text-3xl font-bold text-gray-800">89</h2>
-            <p class="text-sm text-purple-600 flex items-center mt-2 font-medium">
-                <i data-lucide="users" class="w-4 h-4 mr-1"></i> 12 <span class="text-gray-400 ml-1 font-normal">pelanggan baru</span>
+        <div class="pt-4 border-t border-gray-50 mt-2">
+            <p class="text-xs font-bold flex items-center text-purple-600">
+                <i data-lucide="user-plus" class="w-3.5 h-3.5 mr-1"></i> <span>+{{ metrics.new_customers | default(0) }}</span>
+                <span class="text-gray-400 font-medium ml-1.5">Bergabung bulan ini</span>
             </p>
         </div>
     </div>
 
-    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between hover:shadow-md transition-shadow">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-sm font-medium text-gray-500">Peringatan Stok</h3>
-            <div class="p-2 bg-red-50 text-red-600 rounded-lg">
+    <div class="bg-white p-6 rounded-[1.5rem] shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] border border-gray-100 flex flex-col justify-between hover:-translate-y-1 hover:shadow-lg transition-all animate-card delay-300 relative overflow-hidden">
+        {% if metrics.low_stock_count > 0 %}
+        <div class="absolute right-0 top-0 w-32 h-32 bg-red-500/10 rounded-bl-full -mr-10 -mt-10"></div>
+        {% endif %}
+        
+        <div class="flex items-start justify-between mb-2 relative z-10">
+            <div>
+                <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Peringatan Stok</h3>
+                <h2 class="text-3xl font-black {% if metrics.low_stock_count > 0 %}text-red-600{% else %}text-emerald-600{% endif %}">
+                    {{ metrics.low_stock_count | default(0) }}
+                </h2>
+            </div>
+            <div class="p-3 {% if metrics.low_stock_count > 0 %}bg-gradient-to-br from-red-400 to-red-600 shadow-red-500/30{% else %}bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-emerald-500/30{% endif %} text-white rounded-xl shadow-md">
                 <i data-lucide="alert-triangle" class="w-5 h-5"></i>
             </div>
         </div>
-        <div>
-            <h2 class="text-3xl font-bold text-red-600">5 <span class="text-lg text-gray-800 font-semibold">Item</span></h2>
-            <p class="text-sm text-red-600 flex items-center mt-2 font-medium">
-                <i data-lucide="alert-circle" class="w-4 h-4 mr-1"></i> Butuh restock segera!
+        <div class="pt-4 border-t border-gray-50 mt-2 relative z-10">
+            {% if metrics.low_stock_count > 0 %}
+            <a href="/admin/stock" class="text-xs font-bold flex items-center text-red-600 hover:text-red-800 transition-colors">
+                <i data-lucide="alert-circle" class="w-3.5 h-3.5 mr-1"></i> <span class="underline underline-offset-2">Varian hampir habis!</span>
+            </a>
+            {% else %}
+            <p class="text-xs font-bold flex items-center text-emerald-600">
+                <i data-lucide="check-circle" class="w-3.5 h-3.5 mr-1"></i> <span>Gudang Aman</span>
             </p>
+            {% endif %}
         </div>
     </div>
 </div>
 
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 lg:col-span-2">
-        <div class="flex justify-between items-center mb-6">
-            <h3 class="text-lg font-bold text-gray-800">Grafik Penjualan</h3>
-            <select class="bg-gray-50 border border-gray-200 text-sm rounded-lg px-3 py-1 outline-none focus:border-yellow-500">
+    
+    <div class="bg-white p-6 rounded-[1.5rem] shadow-sm border border-gray-100 lg:col-span-2 flex flex-col animate-card">
+        <div class="flex justify-between items-start md:items-center mb-6 flex-col md:flex-row gap-3">
+            <div>
+                <h3 class="text-lg font-black text-gray-900">Grafik Penjualan</h3>
+                <p class="text-xs text-gray-500 font-medium">Trend cuan BABA Parfume.</p>
+            </div>
+            <select class="bg-gray-50 border border-gray-200 text-xs font-bold text-gray-700 rounded-lg px-3 py-2 outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500/20 cursor-pointer">
                 <option>7 Hari Terakhir</option>
                 <option>Bulan Ini</option>
                 <option>Tahun Ini</option>
             </select>
         </div>
-        <div class="h-64 flex items-end justify-between space-x-2 pt-4">
-            <div class="w-full bg-blue-100 rounded-t-sm h-[30%] hover:bg-blue-200 transition-colors relative group"><span class="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-bold opacity-0 group-hover:opacity-100">$120</span></div>
-            <div class="w-full bg-blue-100 rounded-t-sm h-[50%] hover:bg-blue-200 transition-colors relative group"><span class="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-bold opacity-0 group-hover:opacity-100">$200</span></div>
-            <div class="w-full bg-blue-500 rounded-t-sm h-[80%] hover:bg-blue-600 transition-colors relative group"><span class="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-bold opacity-0 group-hover:opacity-100">$320</span></div>
-            <div class="w-full bg-blue-100 rounded-t-sm h-[40%] hover:bg-blue-200 transition-colors relative group"><span class="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-bold opacity-0 group-hover:opacity-100">$160</span></div>
-            <div class="w-full bg-blue-100 rounded-t-sm h-[60%] hover:bg-blue-200 transition-colors relative group"><span class="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-bold opacity-0 group-hover:opacity-100">$240</span></div>
-            <div class="w-full bg-blue-100 rounded-t-sm h-[45%] hover:bg-blue-200 transition-colors relative group"><span class="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-bold opacity-0 group-hover:opacity-100">$180</span></div>
-            <div class="w-full bg-yellow-400 rounded-t-sm h-[100%] hover:bg-yellow-500 transition-colors relative group"><span class="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-bold opacity-0 group-hover:opacity-100">$400</span></div>
+        
+        <div class="h-64 flex items-end justify-between space-x-2 pt-8 border-b border-gray-100 pb-2 flex-1">
+            <div class="w-full bg-blue-100 rounded-t-md h-[30%] hover:bg-blue-200 transition-colors relative group cursor-pointer"><span class="absolute -top-7 left-1/2 -translate-x-1/2 text-xs font-bold bg-gray-900 text-white px-2 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">$120</span></div>
+            <div class="w-full bg-blue-100 rounded-t-md h-[50%] hover:bg-blue-200 transition-colors relative group cursor-pointer"><span class="absolute -top-7 left-1/2 -translate-x-1/2 text-xs font-bold bg-gray-900 text-white px-2 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">$200</span></div>
+            <div class="w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-t-md h-[80%] shadow-[0_0_15px_rgba(59,130,246,0.5)] relative group cursor-pointer"><span class="absolute -top-7 left-1/2 -translate-x-1/2 text-xs font-bold bg-gray-900 text-white px-2 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">$320</span></div>
+            <div class="w-full bg-blue-100 rounded-t-md h-[40%] hover:bg-blue-200 transition-colors relative group cursor-pointer"><span class="absolute -top-7 left-1/2 -translate-x-1/2 text-xs font-bold bg-gray-900 text-white px-2 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">$160</span></div>
+            <div class="w-full bg-blue-100 rounded-t-md h-[60%] hover:bg-blue-200 transition-colors relative group cursor-pointer"><span class="absolute -top-7 left-1/2 -translate-x-1/2 text-xs font-bold bg-gray-900 text-white px-2 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">$240</span></div>
+            <div class="w-full bg-blue-100 rounded-t-md h-[45%] hover:bg-blue-200 transition-colors relative group cursor-pointer"><span class="absolute -top-7 left-1/2 -translate-x-1/2 text-xs font-bold bg-gray-900 text-white px-2 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">$180</span></div>
+            <div class="w-full bg-gradient-to-t from-yellow-500 to-yellow-300 rounded-t-md h-[100%] shadow-[0_0_15px_rgba(234,179,8,0.5)] relative group cursor-pointer"><span class="absolute -top-7 left-1/2 -translate-x-1/2 text-xs font-bold bg-gray-900 text-white px-2 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">$400</span></div>
         </div>
-        <div class="flex justify-between text-xs text-gray-400 mt-2">
-            <span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span><span>Min</span>
+        <div class="flex justify-between text-[10px] font-bold text-gray-400 mt-3 px-1 uppercase tracking-widest">
+            <span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span><span class="text-yellow-600">Min</span>
         </div>
     </div>
 
-    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-        <h3 class="text-lg font-bold text-gray-800 mb-6">Distribusi Kategori</h3>
-        <div class="space-y-5">
+    <div class="bg-white p-6 rounded-[1.5rem] shadow-sm border border-gray-100 flex flex-col animate-card delay-100">
+        <h3 class="text-lg font-black text-gray-900 mb-1">Distribusi Minat</h3>
+        <p class="text-xs text-gray-500 font-medium mb-6">Persentase stok berdasarkan kategori.</p>
+        
+        <div class="space-y-6 flex-1 flex flex-col justify-center">
+            
+            {% set total_stok_kategori = (metrics.cat_man|default(0) + metrics.cat_woman|default(0) + metrics.cat_netral|default(0)) or 1 %}
+            
             <div>
-                <div class="flex justify-between text-sm mb-1">
-                    <span class="font-medium text-gray-700">Man</span>
-                    <span class="font-bold text-gray-800">45%</span>
+                <div class="flex justify-between text-xs mb-2">
+                    <span class="font-bold text-gray-700 flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-blue-500"></div> Man</span>
+                    <span class="font-black text-gray-900">{{ ((metrics.cat_man|default(0) / total_stok_kategori) * 100)|round|int }}%</span>
                 </div>
-                <div class="w-full bg-gray-100 rounded-full h-2">
-                    <div class="bg-gray-800 h-2 rounded-full" style="width: 45%"></div>
+                <div class="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                    <div class="bg-gradient-to-r from-blue-400 to-blue-600 h-full rounded-full transition-all duration-1000" style="width: {{ ((metrics.cat_man|default(0) / total_stok_kategori) * 100)|round|int }}%"></div>
                 </div>
             </div>
+
             <div>
-                <div class="flex justify-between text-sm mb-1">
-                    <span class="font-medium text-gray-700">Woman</span>
-                    <span class="font-bold text-gray-800">30%</span>
+                <div class="flex justify-between text-xs mb-2">
+                    <span class="font-bold text-gray-700 flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-pink-500"></div> Woman</span>
+                    <span class="font-black text-gray-900">{{ ((metrics.cat_woman|default(0) / total_stok_kategori) * 100)|round|int }}%</span>
                 </div>
-                <div class="w-full bg-gray-100 rounded-full h-2">
-                    <div class="bg-pink-500 h-2 rounded-full" style="width: 30%"></div>
+                <div class="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                    <div class="bg-gradient-to-r from-pink-400 to-pink-600 h-full rounded-full transition-all duration-1000" style="width: {{ ((metrics.cat_woman|default(0) / total_stok_kategori) * 100)|round|int }}%"></div>
                 </div>
             </div>
+
             <div>
-                <div class="flex justify-between text-sm mb-1">
-                    <span class="font-medium text-gray-700">Netral</span>
-                    <span class="font-bold text-gray-800">15%</span>
+                <div class="flex justify-between text-xs mb-2">
+                    <span class="font-bold text-gray-700 flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-purple-500"></div> Netral</span>
+                    <span class="font-black text-gray-900">{{ ((metrics.cat_netral|default(0) / total_stok_kategori) * 100)|round|int }}%</span>
                 </div>
-                <div class="w-full bg-gray-100 rounded-full h-2">
-                    <div class="bg-yellow-500 h-2 rounded-full" style="width: 15%"></div>
+                <div class="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                    <div class="bg-gradient-to-r from-purple-400 to-purple-600 h-full rounded-full transition-all duration-1000" style="width: {{ ((metrics.cat_netral|default(0) / total_stok_kategori) * 100)|round|int }}%"></div>
                 </div>
             </div>
-            <div>
-                <div class="flex justify-between text-sm mb-1">
-                    <span class="font-medium text-gray-700">Top Seller (Campur)</span>
-                    <span class="font-bold text-gray-800">10%</span>
-                </div>
-                <div class="w-full bg-gray-100 rounded-full h-2">
-                    <div class="bg-blue-500 h-2 rounded-full" style="width: 10%"></div>
-                </div>
-            </div>
+
         </div>
     </div>
 </div>
 
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 lg:col-span-2">
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 pb-6">
+    
+    <div class="bg-white p-6 rounded-[1.5rem] shadow-sm border border-gray-100 lg:col-span-2 animate-card delay-200">
         <div class="flex justify-between items-center mb-6">
-            <h3 class="text-lg font-bold text-gray-800">Pesanan Terbaru</h3>
-            <a href="/admin/orders" class="text-sm font-medium text-blue-600 hover:text-blue-800">Lihat Semua</a>
+            <div>
+                <h3 class="text-lg font-black text-gray-900">Pesanan Masuk</h3>
+                <p class="text-xs text-gray-500 font-medium">3 pesanan terakhir dari bot Telegram.</p>
+            </div>
+            <a href="/admin/orders" class="text-xs font-bold text-blue-600 hover:text-blue-800 bg-blue-50 px-3 py-1.5 rounded-lg transition-colors">Lihat Semua</a>
         </div>
-        <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse">
+        
+        <div class="overflow-x-auto mini-table-scroll">
+            <table class="w-full text-left whitespace-nowrap">
                 <thead>
-                    <tr class="text-xs font-semibold text-gray-500 uppercase border-b border-gray-100">
+                    <tr class="text-[10px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-100">
                         <th class="pb-3 px-2">Order ID</th>
                         <th class="pb-3 px-2">Pelanggan</th>
-                        <th class="pb-3 px-2">Total</th>
-                        <th class="pb-3 px-2">Status</th>
+                        <th class="pb-3 px-2 text-right">Tagihan</th>
+                        <th class="pb-3 px-2 text-center">Status</th>
                     </tr>
                 </thead>
-                <tbody class="text-sm">
-                    <tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                        <td class="py-3 px-2 font-bold text-gray-800">#ORD-089</td>
-                        <td class="py-3 px-2 text-gray-600">Andika R.</td>
-                        <td class="py-3 px-2 font-bold">$20.00</td>
-                        <td class="py-3 px-2"><span class="bg-yellow-100 text-yellow-700 text-xs px-2 py-1 rounded-full font-semibold">Pending</span></td>
+                <tbody class="text-sm divide-y divide-gray-50">
+                    
+                    {% for o in recent_orders %}
+                    <tr class="hover:bg-gray-50/50 transition-colors group">
+                        <td class="py-4 px-2 font-black text-gray-900">{{ o.order_number }}</td>
+                        <td class="py-4 px-2">
+                            <p class="font-bold text-gray-700">{{ o.customers.full_name | truncate(15) }}</p>
+                            <p class="text-[10px] text-gray-400">{{ o.payment_method }}</p>
+                        </td>
+                        <td class="py-4 px-2 font-black text-emerald-600 text-right">{{ o.total_amount | currency }}</td>
+                        <td class="py-4 px-2 text-center">
+                            {% if o.status == 'Menunggu Pembayaran' %}
+                                <span class="bg-yellow-50 text-yellow-700 text-[10px] px-2.5 py-1 rounded-full font-black border border-yellow-200 uppercase">Pending</span>
+                            {% elif o.status == 'Diproses' %}
+                                <span class="bg-blue-50 text-blue-700 text-[10px] px-2.5 py-1 rounded-full font-black border border-blue-200 uppercase animate-pulse">Proses</span>
+                            {% else %}
+                                <span class="bg-emerald-50 text-emerald-700 text-[10px] px-2.5 py-1 rounded-full font-black border border-emerald-200 uppercase">Selesai</span>
+                            {% endif %}
+                        </td>
                     </tr>
-                    <tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                        <td class="py-3 px-2 font-bold text-gray-800">#ORD-088</td>
-                        <td class="py-3 px-2 text-gray-600">Fifi L.</td>
-                        <td class="py-3 px-2 font-bold">$10.00</td>
-                        <td class="py-3 px-2"><span class="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full font-semibold">Diproses</span></td>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="py-8 text-center text-xs font-bold text-gray-400">Belum ada pesanan terbaru.</td>
                     </tr>
-                    <tr class="hover:bg-gray-50 transition-colors">
-                        <td class="py-3 px-2 font-bold text-gray-800">#ORD-087</td>
-                        <td class="py-3 px-2 text-gray-600">Reza M.</td>
-                        <td class="py-3 px-2 font-bold">$30.00</td>
-                        <td class="py-3 px-2"><span class="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full font-semibold">Selesai</span></td>
-                    </tr>
+                    {% endfor %}
+                    
                 </tbody>
             </table>
         </div>
     </div>
 
-    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-        <h3 class="text-lg font-bold text-gray-800 mb-6">Parfum Terlaris</h3>
-        <div class="space-y-4">
-            <div class="flex items-center space-x-4">
-                <div class="w-12 h-12 rounded-lg bg-yellow-100 flex items-center justify-center text-yellow-600 font-bold text-lg">1</div>
-                <div class="flex-1">
-                    <h4 class="font-bold text-gray-800">TOP 501</h4>
-                    <p class="text-xs text-gray-500">Terjual: 124 pcs</p>
-                </div>
-            </div>
-            <div class="flex items-center space-x-4">
-                <div class="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center text-gray-600 font-bold text-lg">2</div>
-                <div class="flex-1">
-                    <h4 class="font-bold text-gray-800">MEVA</h4>
-                    <p class="text-xs text-gray-500">Terjual: 98 pcs</p>
-                </div>
-            </div>
-            <div class="flex items-center space-x-4">
-                <div class="w-12 h-12 rounded-lg bg-orange-50 flex items-center justify-center text-orange-600 font-bold text-lg">3</div>
-                <div class="flex-1">
-                    <h4 class="font-bold text-gray-800">REXTASE</h4>
-                    <p class="text-xs text-gray-500">Terjual: 85 pcs</p>
-                </div>
-            </div>
+    <div class="bg-white p-6 rounded-[1.5rem] shadow-sm border border-gray-100 flex flex-col animate-card delay-300">
+        <div class="mb-6">
+            <h3 class="text-lg font-black text-gray-900">Hall of Fame 🏆</h3>
+            <p class="text-xs text-gray-500 font-medium">Top 3 Parfum Paling Laku.</p>
         </div>
-        <button class="w-full mt-6 py-2 bg-gray-900 hover:bg-gray-800 text-white text-sm font-semibold rounded-lg transition-colors">Lihat Semua Katalog</button>
+        
+        <div class="space-y-4 flex-1">
+            
+            {% for top in top_products %}
+            <div class="flex items-center space-x-4 p-3 rounded-2xl border border-gray-100 hover:border-yellow-300 hover:shadow-md transition-all group cursor-default">
+                <div class="w-12 h-12 rounded-xl flex items-center justify-center font-black text-xl flex-shrink-0 shadow-inner
+                            {% if loop.index == 1 %}bg-gradient-to-br from-yellow-300 to-yellow-500 text-white
+                            {% elif loop.index == 2 %}bg-gradient-to-br from-gray-200 to-gray-400 text-gray-800
+                            {% elif loop.index == 3 %}bg-gradient-to-br from-amber-600 to-amber-800 text-white
+                            {% endif %}">
+                    {{ loop.index }}
+                </div>
+                
+                <div class="flex-1 min-w-0">
+                    <h4 class="font-black text-gray-900 text-sm truncate group-hover:text-yellow-600 transition-colors">{{ top.name }}</h4>
+                    <p class="text-[10px] text-gray-500 font-bold mt-0.5">Sisa Stok: <span class="text-gray-900">{{ top.stock_quantity }}</span></p>
+                </div>
+                
+                <div class="text-right">
+                    <p class="text-xs font-black text-emerald-600">{{ top.discounted_price | currency }}</p>
+                </div>
+            </div>
+            {% else %}
+            <div class="py-8 text-center text-xs font-bold text-gray-400 border-2 border-dashed border-gray-100 rounded-2xl">
+                Belum ada data penjualan.
+            </div>
+            {% endfor %}
+            
+        </div>
+        
+        <a href="/admin/stock" class="w-full mt-6 py-3.5 bg-gray-900 hover:bg-gray-800 text-white text-sm font-black rounded-xl transition-colors shadow-lg shadow-gray-900/20 text-center flex items-center justify-center gap-2">
+            Lihat Gudang <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </a>
     </div>
 </div>
 {% endblock %}
