@@ -416,9 +416,9 @@ async def admin_orders(request: Request):
     pesanan = []
     if supabase:
         try:
-            # Tarik data order sekaligus join sama tabel customers (ngambil nama, dll)
+            # Tarik data order + info customer + rincian barang yang dibeli (order_items & products)
             res = supabase.table("orders").select(
-                "*, customers(full_name, phone, username, default_address, telegram_id)"
+                "*, customers(full_name, phone, username, default_address, telegram_id), order_items(*, products(name, image_url))"
             ).order("created_at", desc=True).execute()
             pesanan = res.data or []
         except Exception as e:
