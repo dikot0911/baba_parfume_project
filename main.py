@@ -178,7 +178,99 @@ async def read_root(request: Request):
         "settings": settings_data,  # <--- Biar HTML tau no WA admin & Nama Toko
         "produk": produk_aktif      # <--- Biar HTML bisa langsung nampilin katalog
     })
-    
+
+@app.post("/api/v1/checkout", tags=["API External"])
+async def api_process_checkout(request: Request):
+    """Jalur API Gacor untuk nangkep pesanan dari Mini App"""
+    try:
+        data = await request.json()
+        if data.get("action") != "checkout":
+            return JSONResponse(status_code=400, content={"error": "Aksi tidak valid"})
+
+        cust_info = data.get("customer", {})
+        items = data.get("items", [])
+        total_amount = data.get("total_amount", 0)
+        payment_method = data.get("payment_method", "Tidak Diketahui")
+        address = cust_info.get("address", "")
+        tele_id = cust_info.get("id")
+
+        # Generate Nomor Resi
+        order_number = f"ORD-{datetime.now().strftime('%y%m%d')}-{str(tele_id)[-4:]}"
+
+        if supabase:
+            # 1. Update alamat & nama pelanggan di database
+            supabase.table("customers").update({
+                "default_address": address,
+                "full_name": cust_info.get('full_name')
+            }).eq("telegram_id", tele_id).execute()
+
+            # 2. Ambil ID (UUID) pelanggan
+            cust_db = supabase.table("customers").select("id").eq("telegram_id", tele_id).single().execute()
+            cust_uuid = cust_db.data.get("id")
+
+            # 3. Simpan ke tabel Orders
+            order_payload = {
+                "order_number": order_number,
+                "customer_id": cust_uuid,
+                "shipping_address": address,
+                "total_amount": total_amount,
+                "status": "Menunggu Pembayaran",
+                "order_source": "Telegram Mini App",
+                "payment_method": payment_method
+            }
+            order_res = supabase.table("orders").insert(order_payload).execute()
+            order_uuid = order_res.data[0].get("id")
+
+            # 4. Simpan rincian barang (Items) & Potong Stok Realtime
+            for item in items:
+                supabase.table("order_items").insert({
+                    "order_id": order_uuid,
+                    "product_id": item['id'],
+                    "quantity": item['qty'],
+                    "price_at_time": item['price']
+                }).execute()
+
+                # Potong Stok
+                prod_data = supabase.table("products").select("stock_quantity").eq("id", item['id']).single().execute()
+                new_stock = max(0, prod_data.data.get("stock_quantity", 0) - item['qty'])
+                supabase.table("products").update({"stock_quantity": new_stock}).eq("id", item['id']).execute()
+
+        # 5. BLASTER RESI & NOTIFIKASI KE TELEGRAM (Customer & Admin)
+        if BOT_AVAILABLE:
+            from bot import bot as bot_instance
+            import asyncio
+            import os
+            
+            # Resi buat pembeli
+            struk_belanja = (
+                f"✅ <b>YAY! PESANAN BERHASIL DIBUAT!</b>\n\n"
+                f"Terima kasih kak <b>{cust_info.get('full_name')}</b>!\n"
+                f"Nomor Pesanan: <code>{order_number}</code>\n"
+                f"Total Tagihan: <b>${total_amount:.2f}</b>\n"
+                f"Metode Bayar: <b>{payment_method}</b>\n\n"
+                f"<i>Silakan tunggu sebentar ya, tim Admin BABA akan segera menghubungi kakak.</i> 🚀"
+            )
+            # Jalankan di background biar web loadingnya cepet
+            asyncio.create_task(bot_instance.send_message(chat_id=tele_id, text=struk_belanja, parse_mode="HTML"))
+            
+            # Alarm buat bos (Lu)
+            ADMIN_ID = os.getenv("ADMIN_ID")
+            if ADMIN_ID:
+                alert_admin = (
+                    f"🚨 <b>BOS ADA ORDERAN BARU MASUK!</b> 🚨\n\n"
+                    f"Dari: {cust_info.get('full_name')} (@{cust_info.get('username')})\n"
+                    f"Nilai Order: ${total_amount:.2f}\n"
+                    f"Alamat: {address}\n\n"
+                    f"Cek Dashboard Web sekarang buat diproses!"
+                )
+                asyncio.create_task(bot_instance.send_message(chat_id=ADMIN_ID, text=alert_admin, parse_mode="HTML"))
+
+        return {"status": "success", "order_number": order_number}
+
+    except Exception as e:
+        print(f"❌ [API CHECKOUT ERROR]: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+        
 # ==============================================================================
 # ROUTER 2: ADMIN DASHBOARD
 # ==============================================================================
