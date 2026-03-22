@@ -272,42 +272,80 @@ async def api_process_checkout(request: Request):
         return JSONResponse(status_code=500, content={"error": str(e)})
         
 # ==============================================================================
-# ROUTER 2: ADMIN DASHBOARD
+# ROUTER 2: ADMIN DASHBOARD (ANALYTICS ENGINE)
 # ==============================================================================
 @app.get("/admin", response_class=HTMLResponse, tags=["Admin Core"])
 async def admin_dashboard(request: Request):
-    stats = {
-        "revenue": 0, "pending_revenue": 0, "total_products": 0, 
-        "total_customers": 0, "total_orders": 0, "stok_kritis": 0,
-        "recent_orders": [], "top_products": []
+    # Bikin blueprint kerangka datanya
+    metrics = {
+        "total_revenue": 0.0, "revenue_growth": 12.5, # Growth di-mock 12.5% dulu
+        "total_orders": 0, "completed_orders": 0,
+        "total_customers": 0, "new_customers": 0,
+        "low_stock_count": 0,
+        "cat_man": 0, "cat_woman": 0, "cat_netral": 0
     }
+    recent_orders = []
+    top_products = []
     
     if supabase:
         try:
-            res_produk = supabase.table("products").select("*").order("stock_quantity").execute()
+            # 1. Tarik Data Database
+            res_produk = supabase.table("products").select("*").execute()
             res_orders = supabase.table("orders").select("*, customers(full_name)").order("created_at", desc=True).execute()
-            res_cust = supabase.table("customers").select("id").execute()
+            res_cust = supabase.table("customers").select("id, created_at").execute()
 
             produk_data = res_produk.data or []
             orders_data = res_orders.data or []
+            cust_data = res_cust.data or []
 
-            stats["revenue"] = sum(o['total_amount'] for o in orders_data if o['status'] == 'Selesai')
-            stats["pending_revenue"] = sum(o['total_amount'] for o in orders_data if o['status'] == 'Menunggu Pembayaran')
-            stats["total_products"] = len(produk_data)
-            stats["total_customers"] = len(res_cust.data or [])
-            stats["total_orders"] = len(orders_data)
-            stats["stok_kritis"] = len([p for p in produk_data if p.get('stock_quantity', 0) <= 10])
-            stats["recent_orders"] = orders_data[:5]
-            stats["top_products"] = produk_data[:5] # Mockup terlaris
+            # 2. Kalkulasi Metrik Produk (Stok & Kategori)
+            for p in produk_data:
+                tags = [t.upper() for t in safe_array(p.get("tags"))]
+                stok = int(p.get("stock_quantity", 0))
+                
+                # Alarm Varian Habis
+                if stok <= 5: 
+                    metrics["low_stock_count"] += 1
+
+                # Hitung Distribusi Kategori
+                if "MAN" in tags and "WOMAN" not in tags:
+                    metrics["cat_man"] += stok
+                elif "WOMAN" in tags:
+                    metrics["cat_woman"] += stok
+                elif "NETRAL" in tags or "UNISEX" in tags:
+                    metrics["cat_netral"] += stok
+
+            # 3. Kalkulasi Metrik Order & Omset
+            metrics["total_orders"] = len(orders_data)
+            for o in orders_data:
+                if o.get("status") == "Selesai":
+                    metrics["completed_orders"] += 1
+                    metrics["total_revenue"] += float(o.get("total_amount", 0))
+
+            # 4. Kalkulasi Customer Baru (Bulan Ini)
+            metrics["total_customers"] = len(cust_data)
+            current_month = datetime.now().month
+            # Ngitung berapa orang yg join bulan ini
+            new_cust = [c for c in cust_data if datetime.fromisoformat(c['created_at'].replace('Z', '+00:00')).month == current_month]
+            metrics["new_customers"] = len(new_cust)
+
+            # 5. Data Tambahan buat List
+            recent_orders = orders_data[:3] # Ambil 3 order terbaru aja buat di halaman depan
+            
+            # Simulasi Top Products (Diambil dari barang yang stoknya paling laku/dikit)
+            top_products = sorted(produk_data, key=lambda x: x.get('stock_quantity', 0))[:3]
+
         except Exception as e:
             print(f"❌ [ERROR DASHBOARD]: {e}")
 
+    # Lempar ke dashboard.html yang baru!
     return templates.TemplateResponse("admin/dashboard.html", {
         "request": request, 
-        "stats": stats, 
+        "metrics": metrics, 
+        "recent_orders": recent_orders,
+        "top_products": top_products,
         "pending_count": get_pending_count()
     })
-
 # ==============================================================================
 # ROUTER 3: MANAJEMEN STOK (INVENTORY)
 # ==============================================================================
