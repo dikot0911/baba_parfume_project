@@ -241,13 +241,41 @@ async def add_product(
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/admin/stock/edit/{pid}", tags=["Admin Inventory"])
-async def edit_product(pid: int, name: str = Form(...), stock_quantity: int = Form(...), discounted_price: float = Form(...)):
+async def edit_product(
+    pid: int, 
+    name: str = Form(...), 
+    stock_quantity: int = Form(...), 
+    discounted_price: float = Form(...),
+    # 3 Variabel baru buat nangkep logic dari HTML:
+    stock_action: str = Form("tetap"), 
+    adj_amount: int = Form(0), 
+    stock_reason: str = Form("")
+):
     try:
+        # 1. Update data utama ke tabel products (Nama, Harga, Sisa Stok)
         supabase.table("products").update({
-            "name": name, "stock_quantity": stock_quantity, "discounted_price": discounted_price
+            "name": name, 
+            "stock_quantity": stock_quantity, 
+            "discounted_price": discounted_price
         }).eq("id", pid).execute()
+
+        # 2. Catat Sejarah (Audit Log) kalau ada aksi tambah/kurang
+        if stock_action in ['tambah', 'kurang'] and adj_amount > 0:
+            log_payload = {
+                "product_id": pid,
+                "action": stock_action,
+                "adjustment_amount": adj_amount,
+                "final_stock": stock_quantity,
+                "reason": stock_reason if stock_action == 'kurang' else "Restock persediaan"
+            }
+            # Simpan ke tabel stock_logs di Supabase
+            supabase.table("stock_logs").insert(log_payload).execute()
+            print(f"✅ [AUDIT LOG] Berhasil {stock_action} {adj_amount} pcs untuk parfum ID {pid}")
+
         return RedirectResponse(url="/admin/stock", status_code=status.HTTP_303_SEE_OTHER)
+    
     except Exception as e:
+        print(f"❌ [ERROR EDIT STOK]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/admin/stock/delete/{pid}", tags=["Admin Inventory"])
