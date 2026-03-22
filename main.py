@@ -287,28 +287,64 @@ async def delete_product(pid: int):
         raise HTTPException(status_code=500, detail=str(e))
     
 # ==============================================================================
-# ROUTER 4: PESANAN & PELANGGAN (CRM)
+# ROUTER 4: PESANAN & PELANGGAN (CRM ENTERPRISE)
 # ==============================================================================
+
 @app.get("/admin/orders", response_class=HTMLResponse, tags=["Admin CRM"])
 async def admin_orders(request: Request):
     pesanan = []
     if supabase:
         try:
-            res = supabase.table("orders").select("*, customers(full_name, phone, username, default_address)").order("created_at", desc=True).execute()
+            # Tarik data order sekaligus join sama tabel customers (ngambil nama, dll)
+            res = supabase.table("orders").select(
+                "*, customers(full_name, phone, username, default_address, telegram_id)"
+            ).order("created_at", desc=True).execute()
             pesanan = res.data or []
         except Exception as e:
             print(f"❌ [ERROR PESANAN]: {e}")
             
     return templates.TemplateResponse("admin/orders.html", {
-        "request": request, "pesanan": pesanan, "pending_count": get_pending_count()
+        "request": request, 
+        "pesanan": pesanan, 
+        "pending_count": get_pending_count()
     })
 
 @app.post("/admin/update-order-status", tags=["Admin CRM"])
 async def update_order_status(order_id: str = Form(...), status_order: str = Form(..., alias="status")):
     try:
+        # 1. Update status di database
         supabase.table("orders").update({"status": status_order}).eq("id", order_id).execute()
+        
+        # 2. FITUR AUTO-NOTIFIKASI KE TELEGRAM PELANGGAN
+        if BOT_AVAILABLE:
+            try:
+                # Cari tau ID Telegram pelanggannya dari order ini
+                res_order = supabase.table("orders").select("order_number, customers(telegram_id, full_name)").eq("id", order_id).single().execute()
+                if res_order.data and res_order.data.get("customers"):
+                    tele_id = res_order.data["customers"]["telegram_id"]
+                    cust_name = res_order.data["customers"]["full_name"]
+                    no_order = res_order.data["order_number"]
+                    
+                    # Rangkai pesan otomatis
+                    pesan_notif = (
+                        f"🔔 <b>UPDATE PESANAN BABA PARFUME</b>\n\n"
+                        f"Halo kak <b>{cust_name}</b>!\n"
+                        f"Status pesanan kamu (<code>{no_order}</code>) sekarang berubah menjadi:\n"
+                        f"👉 <b>{status_order.upper()}</b>\n\n"
+                        f"<i>Terima kasih sudah berbelanja di BABA Parfume! ✨</i>"
+                    )
+                    
+                    # Kirim lewat bot
+                    from bot import bot as bot_instance
+                    import asyncio
+                    asyncio.create_task(bot_instance.send_message(chat_id=tele_id, text=pesan_notif))
+                    print(f"✅ [NOTIF BOT] Berhasil kirim update status ke {cust_name}")
+            except Exception as e:
+                print(f"⚠️ [NOTIF BOT ERROR] Gagal kirim notif telegram: {e}")
+
         return RedirectResponse(url="/admin/orders", status_code=status.HTTP_303_SEE_OTHER)
     except Exception as e:
+        print(f"❌ [ERROR UPDATE STATUS]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/admin/customers", response_class=HTMLResponse, tags=["Admin CRM"])
@@ -316,14 +352,49 @@ async def admin_customers(request: Request):
     pelanggan = []
     if supabase:
         try:
-            res = supabase.table("customers").select("*").order("created_at", desc=True).execute()
-            pelanggan = res.data or []
+            # 1. Ambil data mentah pelanggan
+            res_cust = supabase.table("customers").select("*").order("created_at", desc=True).execute()
+            pelanggan = res_cust.data or []
+            
+            # 2. Ambil data orderan yang valid (bukan yang cuma iseng klik/belum bayar) buat ngitung omset
+            res_orders = supabase.table("orders").select("customer_id, total_amount").neq("status", "Menunggu Pembayaran").execute()
+            orders_data = res_orders.data or []
+
+            # 3. Aggregasi (Menyatukan data order ke masing-masing pelanggan)
+            for c in pelanggan:
+                c_orders = [o for o in orders_data if o['customer_id'] == c['id']]
+                c['calc_total_orders'] = len(c_orders)
+                c['calc_total_spent'] = sum(float(o['total_amount']) for o in c_orders)
+                
         except Exception as e:
             print(f"❌ [ERROR PELANGGAN]: {e}")
             
     return templates.TemplateResponse("admin/customers.html", {
-        "request": request, "pelanggan": pelanggan, "pending_count": get_pending_count()
+        "request": request, 
+        "pelanggan": pelanggan, 
+        "pending_count": get_pending_count()
     })
+
+@app.post("/admin/customers/edit/{cid}", tags=["Admin CRM"])
+async def edit_customer(
+    cid: str, 
+    full_name: str = Form(...), 
+    phone: str = Form(""), 
+    default_address: str = Form("")
+):
+    """Rute untuk menerima update data dari pop-up modal di HTML Customers"""
+    try:
+        supabase.table("customers").update({
+            "full_name": full_name,
+            "phone": phone,
+            "default_address": default_address
+        }).eq("id", cid).execute()
+        
+        return RedirectResponse(url="/admin/customers", status_code=status.HTTP_303_SEE_OTHER)
+    except Exception as e:
+        print(f"❌ [ERROR EDIT PELANGGAN]: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+        
 # ==============================================================================
 # ROUTER 5: PENGATURAN (SETTINGS)
 # ==============================================================================
