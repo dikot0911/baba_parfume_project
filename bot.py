@@ -85,8 +85,8 @@ def kb_main_menu() -> InlineKeyboardMarkup:
 def kb_admin_menu() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="📱 Admin Telegram", url="https://t.me/AndikaKot"),
-            InlineKeyboardButton(text="🟢 Admin WhatsApp", url="https://wa.me/6281234567890")
+            InlineKeyboardButton(text="📱 Admin Telegram", url="https://t.me/babaparfume_bot"),
+            InlineKeyboardButton(text="🟢 Admin WhatsApp", url="https://wa.me/628972996650")
         ],
         [InlineKeyboardButton(text="🔙 Kembali ke Menu Utama", callback_data="menu_utama")]
     ])
