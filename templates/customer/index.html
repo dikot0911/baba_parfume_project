@@ -614,9 +614,8 @@
                     }
                 },
 
-                // STEP 2: PROSES KIRIM DATA (TRIGGER BOT & DATABASE)
-                processFinalCheckout() {
-                    // Bikin Payload JSON super komplit buat ditangkep Bot.py nanti
+                // STEP 2: PROSES KIRIM DATA (JALUR API ENTERPRISE)
+                processFinalCheckout(event) {
                     const payload = {
                         action: 'checkout',
                         customer: {
@@ -636,18 +635,46 @@
                         total_amount: this.cartTotalPrice
                     };
 
-                    if (window.Telegram && window.Telegram.WebApp) {
-                        // INI KUNCI UTAMA: Ngirim data ke Bot Python!
-                        // Nanti di bot.py kita nangkep pake web_app_data
-                        window.Telegram.WebApp.sendData(JSON.stringify(payload));
-                        window.Telegram.WebApp.close(); // Tutup Mini App, balik ke chatan Bot
-                    } else {
-                        // Mode testing di browser laptop biasa
-                        alert("✅ PESANAN BERHASIL!\n\nKarena ini bukan di Telegram, data JSON yg ke-generate adalah:\n" + JSON.stringify(payload, null, 2));
-                        this.isConfirmModalOpen = false;
-                        this.isCartOpen = false;
-                        this.cart = []; // Kosongin keranjang
-                    }
+                    // Animasi teks tombol berubah biar keren
+                    const btn = event.currentTarget || event.target;
+                    const originalText = btn.innerText;
+                    btn.innerText = "Memproses Pesanan...";
+                    btn.disabled = true;
+
+                    // Tembak data langsung ke main.py pakai Fetch API
+                    fetch('/api/v1/checkout', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            // Bikin HP geter sukses
+                            if (window.Telegram && window.Telegram.WebApp.HapticFeedback) {
+                                window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+                            }
+                            
+                            // Tutup Mini App, biar user bisa liat struk di chat bot
+                            if (window.Telegram && window.Telegram.WebApp) {
+                                window.Telegram.WebApp.close();
+                            } else {
+                                alert("Mantap! Pesanan Berhasil dengan Resi: " + data.order_number);
+                                this.isConfirmModalOpen = false;
+                                this.isCartOpen = false;
+                                this.cart = [];
+                            }
+                        } else {
+                            throw new Error(data.error || "Gagal diproses di server");
+                        }
+                    })
+                    .catch(error => {
+                        console.error("Checkout Error:", error);
+                        alert("Waduh kak, sistem lagi sibuk. Coba lagi ya! \nDetail: " + error.message);
+                        btn.innerText = originalText;
+                        btn.disabled = false;
+                    });
+                }
                 }
             }
         }
