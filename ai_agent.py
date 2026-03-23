@@ -6,15 +6,18 @@ from database import supabase
 logger = logging.getLogger("baba.ai")
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-model = None
+
+# Menggunakan SDK terbaru (Client berbasis objek)
+client = None
 if GEMINI_API_KEY:
     try:
-        import google.generativeai as genai
-
-        genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        from google import genai
+        from google.genai import types
+        
+        # Inisialisasi client baru
+        client = genai.Client(api_key=GEMINI_API_KEY)
     except Exception as exc:
-        logger.warning("Library Gemini tidak tersedia: %s", exc)
+        logger.warning("Library Google GenAI tidak tersedia atau gagal inisialisasi: %s", exc)
 
 
 async def get_or_create_session(tele_id: int):
@@ -68,7 +71,7 @@ def build_fallback_reply(user_message: str) -> str:
 
 
 async def get_ai_recommendation(tele_id: int, user_message: str):
-    """Fungsi utama untuk memproses chat user dengan otak Gemini."""
+    """Fungsi utama untuk memproses chat user dengan otak Gemini 2.5 Flash."""
     try:
         sid = await get_or_create_session(tele_id)
 
@@ -86,8 +89,10 @@ async def get_ai_recommendation(tele_id: int, user_message: str):
 
         stok_realtime = await get_perfume_knowledge_base()
 
-        if model and stok_realtime:
-            system_prompt = f"""
+        if client and stok_realtime:
+            # UPGRADE: Menggunakan System Instruction bawaan GenAI 
+            # Biar AI jauh lebih patuh terhadap peran dan aturannya
+            system_instruction = f"""
             Kamu adalah 'BABA AI Expert', konsultan parfum profesional dari BABA Parfume.
             Tugasmu: Memberikan rekomendasi parfum terbaik berdasarkan stok yang tersedia.
 
@@ -99,12 +104,20 @@ async def get_ai_recommendation(tele_id: int, user_message: str):
             2. Jika user ingin parfum yang stoknya 0 atau tidak ada di list, katakan sedang kosong dan tawarkan yang mirip.
             3. Jelaskan piramida aroma (top/heart/base notes) biar user tergiur.
             4. Jangan pernah menyarankan produk yang tidak ada di list DATA STOK.
-            5. Lihat riwayat chat di bawah untuk memahami konteks.
-
-            RIWAYAT CHAT SEBELUMNYA:
-            {chat_context}
             """
-            response = model.generate_content(system_prompt + f"\nPertanyaan User Baru: {user_message}")
+            
+            # Merakit prompt berisi memory percakapan dan pesan terakhir user
+            full_prompt = f"RIWAYAT CHAT SEBELUMNYA:\n{chat_context}\n\nPertanyaan User Baru: {user_message}"
+
+            # UPGRADE: Panggil gemini-2.5-flash secara asynchronous (client.aio) agar lebih cepat & tidak nge-block
+            response = await client.aio.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=full_prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_instruction,
+                    temperature=0.6, # Dibuat pas agar AI sedikit kreatif berjualan tapi tetap fokus ke fakta stok
+                )
+            )
             ai_reply = response.text
         else:
             ai_reply = build_fallback_reply(user_message)
