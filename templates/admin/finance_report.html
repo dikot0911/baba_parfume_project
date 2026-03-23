@@ -1,0 +1,264 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Laporan Laba Rugi{% endblock %}
+{% block header %}Laporan Keuangan{% endblock %}
+{% block breadcrumb %}Finance / Report{% endblock %}
+
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<div x-data="financeReport()" x-init="initChart()" class="space-y-6 pb-10">
+
+    <div class="bg-white rounded-2xl p-4 lg:p-5 shadow-sm border border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div class="flex items-center gap-3 w-full sm:w-auto">
+            <div class="p-2 bg-brand-50 rounded-lg border border-brand-100 text-brand-600">
+                <i data-lucide="bar-chart-3" class="w-5 h-5"></i>
+            </div>
+            <div>
+                <h2 class="text-sm font-black text-gray-900">Profit & Loss Statement</h2>
+                <p class="text-[11px] font-medium text-gray-500">Ringkasan performa finansial bisnis</p>
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-3 w-full sm:w-auto">
+            <select class="flex-1 sm:flex-none px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-700 focus:ring-2 focus:ring-brand-500 outline-none appearance-none cursor-pointer">
+                <option value="03-2026" selected>Maret 2026</option>
+                <option value="02-2026">Februari 2026</option>
+                <option value="01-2026">Januari 2026</option>
+                <option value="2026">Sepanjang Tahun 2026</option>
+            </select>
+            
+            <button class="flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-900 hover:bg-black text-white rounded-xl text-sm font-bold shadow-md transition-colors active:scale-95">
+                <i data-lucide="printer" class="w-4 h-4"></i> <span class="hidden sm:inline">Cetak PDF</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
+        <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 relative overflow-hidden">
+            <div class="absolute right-0 top-0 w-16 h-16 bg-emerald-50 rounded-bl-full z-0"></div>
+            <div class="relative z-10">
+                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Omset</p>
+                <h3 class="text-2xl font-black text-gray-900 mb-3">Rp 35.500.000</h3>
+                <div class="flex items-center gap-1 text-xs font-bold text-emerald-600">
+                    <i data-lucide="trending-up" class="w-3.5 h-3.5"></i> <span>+12.5%</span> <span class="text-gray-400 font-medium ml-1">dari bulan lalu</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 relative overflow-hidden">
+            <div class="absolute right-0 top-0 w-16 h-16 bg-orange-50 rounded-bl-full z-0"></div>
+            <div class="relative z-10">
+                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1 flex items-center gap-1">
+                    Total HPP <i data-lucide="help-circle" class="w-3 h-3 cursor-help text-gray-300" title="Harga Pokok Penjualan (Biang, Botol, Ongkir Stok)"></i>
+                </p>
+                <h3 class="text-2xl font-black text-gray-900 mb-3">Rp 12.000.000</h3>
+                <div class="flex items-center gap-1 text-xs font-bold text-orange-500">
+                    <i data-lucide="shopping-bag" class="w-3.5 h-3.5"></i> <span>Makan 33.8% dari Omset</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 relative overflow-hidden">
+            <div class="absolute right-0 top-0 w-16 h-16 bg-red-50 rounded-bl-full z-0"></div>
+            <div class="relative z-10">
+                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Biaya Operasional</p>
+                <h3 class="text-2xl font-black text-gray-900 mb-3">Rp 4.500.000</h3>
+                <div class="flex items-center gap-1 text-xs font-bold text-red-500">
+                    <i data-lucide="trending-down" class="w-3.5 h-3.5"></i> <span>Iklan, Gaji, Sewa</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-br from-brand-500 to-brand-600 rounded-2xl p-5 shadow-lg shadow-brand-500/20 border border-brand-400 relative overflow-hidden text-white">
+            <div class="absolute -right-6 -bottom-6 opacity-20"><i data-lucide="piggy-bank" class="w-32 h-32"></i></div>
+            <div class="relative z-10">
+                <p class="text-[10px] font-bold text-brand-100 uppercase tracking-widest mb-1">Laba Bersih (Net Profit)</p>
+                <h3 class="text-2xl font-black text-white mb-3 flex items-baseline gap-1">Rp 19.000.000</h3>
+                <div class="flex items-center justify-between">
+                    <span class="inline-block px-2 py-0.5 bg-black/20 rounded text-[10px] font-bold backdrop-blur-sm border border-white/10">Margin: 53.5%</span>
+                    <span class="text-xs font-bold text-white flex items-center gap-1"><i data-lucide="smile" class="w-3.5 h-3.5"></i> Cuan Maksimal!</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <div class="lg:col-span-2 bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h3 class="text-sm font-bold text-gray-900">Grafik Pemasukan vs Pengeluaran</h3>
+                    <p class="text-xs text-gray-500 mt-0.5">Tren harian selama bulan Maret 2026</p>
+                </div>
+            </div>
+            <div class="relative h-64 w-full">
+                <canvas id="cashflowChart"></canvas>
+            </div>
+        </div>
+
+        <div class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm flex flex-col">
+            <div class="mb-4">
+                <h3 class="text-sm font-bold text-gray-900 flex items-center gap-2">
+                    <i data-lucide="file-spreadsheet" class="w-4 h-4 text-brand-500"></i> Rincian Buku Kas
+                </h3>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-4">
+                
+                <div>
+                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 border-b border-gray-100 pb-1">1. Pendapatan (Revenue)</p>
+                    <div class="space-y-1.5">
+                        <div class="flex justify-between items-center text-sm">
+                            <span class="text-gray-600 font-medium">Penjualan Web/Bot</span>
+                            <span class="font-bold text-gray-900">Rp 32.500.000</span>
+                        </div>
+                        <div class="flex justify-between items-center text-sm">
+                            <span class="text-gray-600 font-medium">Penjualan Dropship</span>
+                            <span class="font-bold text-gray-900">Rp 3.000.000</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 border-b border-gray-100 pb-1 mt-2">2. Harga Pokok Penjualan (HPP)</p>
+                    <div class="space-y-1.5">
+                        <div class="flex justify-between items-center text-sm">
+                            <span class="text-gray-600 font-medium">Belanja Biang & Botol</span>
+                            <span class="font-bold text-red-500">- Rp 10.500.000</span>
+                        </div>
+                        <div class="flex justify-between items-center text-sm">
+                            <span class="text-gray-600 font-medium">Ongkir Jastip / Impor</span>
+                            <span class="font-bold text-red-500">- Rp 1.500.000</span>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center mt-3 pt-2 border-t border-gray-100 bg-gray-50 p-2 rounded-lg">
+                        <span class="text-xs font-bold text-gray-800 uppercase">Laba Kotor</span>
+                        <span class="text-sm font-black text-emerald-600">Rp 23.500.000</span>
+                    </div>
+                </div>
+
+                <div>
+                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 border-b border-gray-100 pb-1 mt-2">3. Biaya Operasional (OpEx)</p>
+                    <div class="space-y-1.5">
+                        <div class="flex justify-between items-center text-sm">
+                            <span class="text-gray-600 font-medium">Iklan / FB Ads</span>
+                            <span class="font-bold text-orange-500">- Rp 2.000.000</span>
+                        </div>
+                        <div class="flex justify-between items-center text-sm">
+                            <span class="text-gray-600 font-medium">Sewa VPS & Domain</span>
+                            <span class="font-bold text-orange-500">- Rp 500.000</span>
+                        </div>
+                        <div class="flex justify-between items-center text-sm">
+                            <span class="text-gray-600 font-medium">Gaji / Konsumsi</span>
+                            <span class="font-bold text-orange-500">- Rp 2.000.000</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="mt-4 pt-3 border-t-2 border-dashed border-gray-200">
+                <div class="flex justify-between items-end">
+                    <div>
+                        <p class="text-xs font-bold text-gray-500 uppercase tracking-widest">Total Laba Bersih</p>
+                        <p class="text-[10px] text-gray-400 mt-0.5">Setelah dipotong semua biaya</p>
+                    </div>
+                    <div class="text-right">
+                        <h2 class="text-2xl font-black text-brand-600">Rp 19.000.000</h2>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+    function financeReport() {
+        return {
+            initChart() {
+                const ctx = document.getElementById('cashflowChart').getContext('2d');
+                
+                // Data Mockup untuk Grafik
+                const labels = ['Mgg 1', 'Mgg 2', 'Mgg 3', 'Mgg 4'];
+                const dataPemasukan = [8500000, 12000000, 7500000, 7500000];
+                const dataPengeluaran = [3000000, 4500000, 2000000, 7000000];
+
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'Pemasukan (Rp)',
+                                data: dataPemasukan,
+                                backgroundColor: '#10b981', // Emerald 500
+                                borderRadius: 6,
+                                barPercentage: 0.6,
+                                categoryPercentage: 0.8
+                            },
+                            {
+                                label: 'Pengeluaran (Rp)',
+                                data: dataPengeluaran,
+                                backgroundColor: '#ef4444', // Red 500
+                                borderRadius: 6,
+                                barPercentage: 0.6,
+                                categoryPercentage: 0.8
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            intersect: false,
+                            mode: 'index',
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                align: 'end',
+                                labels: { boxWidth: 12, usePointStyle: true, font: { family: 'Inter', size: 11, weight: 'bold' } }
+                            },
+                            tooltip: {
+                                backgroundColor: '#0B1121',
+                                titleFont: { family: 'Inter', size: 13 },
+                                bodyFont: { family: 'Inter', size: 12 },
+                                padding: 10,
+                                cornerRadius: 8,
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) { label += ': '; }
+                                        if (context.parsed.y !== null) {
+                                            label += new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(context.parsed.y);
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: { color: '#f3f4f6', drawBorder: false },
+                                ticks: {
+                                    font: { family: 'Inter', size: 10 },
+                                    callback: function(value) {
+                                        return 'Rp ' + (value / 1000000) + ' Jt'; // Format jadi Juta
+                                    }
+                                }
+                            },
+                            x: {
+                                grid: { display: false, drawBorder: false },
+                                ticks: { font: { family: 'Inter', size: 11, weight: '500' } }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+    }
+</script>
+{% endblock %}
