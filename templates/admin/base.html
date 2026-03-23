@@ -114,9 +114,14 @@
             </a>
             
             {% if admin_role in ['super_admin', 'oprasional'] %}
-            <a href="/admin/stock" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors duration-200 {% if '/admin/stock' in current_path %}bg-brand-500/10 text-brand-400 font-semibold{% else %}text-gray-400 hover:bg-gray-800/50 hover:text-gray-200 font-medium{% endif %}">
-                <i data-lucide="package-search" class="w-5 h-5 {% if '/admin/stock' in current_path %}text-brand-500{% endif %}"></i>
+            <a href="/admin/stock" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors duration-200 {% if current_path == '/admin/stock' %}bg-brand-500/10 text-brand-400 font-semibold{% else %}text-gray-400 hover:bg-gray-800/50 hover:text-gray-200 font-medium{% endif %}">
+                <i data-lucide="package-search" class="w-5 h-5 {% if current_path == '/admin/stock' %}text-brand-500{% endif %}"></i>
                 <span>Manajemen Stok</span>
+            </a>
+
+            <a href="/admin/stock/belanja" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors duration-200 {% if '/admin/stock/belanja' in current_path %}bg-brand-500/10 text-brand-400 font-semibold{% else %}text-gray-400 hover:bg-gray-800/50 hover:text-gray-200 font-medium{% endif %}">
+                <i data-lucide="truck" class="w-5 h-5 {% if '/admin/stock/belanja' in current_path %}text-brand-500{% endif %}"></i>
+                <span>Belanja & PO</span>
             </a>
             
             <a href="/admin/orders" class="flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors duration-200 {% if '/admin/orders' in current_path %}bg-brand-500/10 text-brand-400 font-semibold{% else %}text-gray-400 hover:bg-gray-800/50 hover:text-gray-200 font-medium{% endif %}">
@@ -130,8 +135,29 @@
             </a>
             {% endif %}
 
+            {% if admin_role in ['super_admin', 'oprasional'] %}
             <div class="my-6 border-t border-gray-800/80"></div>
-            
+            <p class="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Keuangan (Finance)</p>
+
+            <a href="/admin/finance/aset" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors duration-200 {% if '/admin/finance/aset' in current_path %}bg-brand-500/10 text-brand-400 font-semibold{% else %}text-gray-400 hover:bg-gray-800/50 hover:text-gray-200 font-medium{% endif %}">
+                <i data-lucide="landmark" class="w-5 h-5 {% if '/admin/finance/aset' in current_path %}text-brand-500{% endif %}"></i>
+                <span>Aset & Dompet</span>
+            </a>
+
+            <a href="/admin/finance/mutasi" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors duration-200 {% if '/admin/finance/mutasi' in current_path %}bg-brand-500/10 text-brand-400 font-semibold{% else %}text-gray-400 hover:bg-gray-800/50 hover:text-gray-200 font-medium{% endif %}">
+                <i data-lucide="arrow-right-left" class="w-5 h-5 {% if '/admin/finance/mutasi' in current_path %}text-brand-500{% endif %}"></i>
+                <span>Buku Besar (Ledger)</span>
+            </a>
+            {% endif %}
+
+            {% if admin_role == 'super_admin' %}
+            <a href="/admin/finance/report" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors duration-200 {% if '/admin/finance/report' in current_path %}bg-brand-500/10 text-brand-400 font-semibold{% else %}text-gray-400 hover:bg-gray-800/50 hover:text-gray-200 font-medium{% endif %}">
+                <i data-lucide="pie-chart" class="w-5 h-5 {% if '/admin/finance/report' in current_path %}text-brand-500{% endif %}"></i>
+                <span>Laporan Laba Rugi</span>
+            </a>
+            {% endif %}
+
+            <div class="my-6 border-t border-gray-800/80"></div>
             <p class="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">CRM & Pelayanan</p>
             
             {% if admin_role in ['super_admin', 'marketing'] %}
