@@ -3,6 +3,7 @@ import json
 import logging
 import asyncio
 from datetime import datetime
+from typing import Optional
 from dotenv import load_dotenv
 
 # Aiogram v3
@@ -15,13 +16,11 @@ from aiogram.filters import CommandStart
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 
-# Import Database (Versi Jujur)
+# Import Database
 try:
     from database import supabase
-    print("✅ [DEBUG] Database berhasil di-load di bot.py")
 except Exception as e:
-    # Bakal ngasih tau lu error aslinya (misal: cannot import name 'supabase')
-    print(f"❌ [FATAL ERROR] Gagal load database di bot.py: {e}")
+    logging.getLogger("BabaBotEngine").warning("Database bot tidak aktif: %s", e)
     supabase = None
 
 # ==============================================================================
@@ -30,21 +29,25 @@ except Exception as e:
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-ADMIN_ID = os.getenv("ADMIN_ID") 
+ADMIN_ID = os.getenv("ADMIN_ID")
 WEB_APP_URL = os.getenv("WEB_APP_URL") or "http://127.0.0.1:8000"
-
-if not BOT_TOKEN:
-    raise ValueError("❌ [ERROR] BOT_TOKEN belum diisi di file .env!")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("BabaBotEngine")
 
+BOT_RUNTIME_AVAILABLE = bool(BOT_TOKEN)
+
 # INI DIA YANG DICARI SAMA main.py (Variabel 'bot', 'dp', 'router')
-bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+bot: Optional[Bot] = None
+if BOT_RUNTIME_AVAILABLE:
+    bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+else:
+    logger.info("BOT_TOKEN belum tersedia; modul bot berjalan dalam mode standby")
+
 dp = Dispatcher()
 router = Router()
 
-__all__ = ['bot', 'dp', 'router', 'alarm_pesanan_pending']
+__all__ = ['BOT_RUNTIME_AVAILABLE', 'bot', 'dp', 'router', 'alarm_pesanan_pending']
 
 # ==============================================================================
 # 2. SISTEM DATABASE HELPER
@@ -190,7 +193,7 @@ async def handle_web_app_data(message: Message):
         )
         await message.reply(struk_belanja)
 
-        if ADMIN_ID:
+        if ADMIN_ID and bot:
             alert_admin = (
                 f"🚨 <b>BOS ADA ORDERAN BARU MASUK!</b> 🚨\n\n"
                 f"Dari: {cust_info.get('full_name')} (@{cust_info.get('username')})\n"
@@ -212,11 +215,11 @@ async def catch_all_messages(message: Message):
 # ==============================================================================
 # 6. BACKGROUND TASK: AUTO-SPAM ADMIN
 # ==============================================================================
-async def alarm_pesanan_pending(bot_instance: Bot):
+async def alarm_pesanan_pending(bot_instance: Optional[Bot]):
     await asyncio.sleep(60)
     while True:
         try:
-            if supabase and ADMIN_ID:
+            if supabase and ADMIN_ID and bot_instance:
                 res = supabase.table("orders").select("id").eq("status", "Menunggu Pembayaran").execute()
                 pending_orders = res.data or []
                 if len(pending_orders) > 0:

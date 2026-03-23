@@ -163,12 +163,10 @@
                         // Pastikan data user beneran ada
                         if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
                             this.tgUser = tg.initDataUnsafe.user;
-                            console.log("✅ User ID Detected:", this.tgUser.id);
                             this.loadHistory(); 
                         } else {
                             // Mode Testing di Browser Biasa (Biar ga error pas lu tes di laptop)
                             this.tgUser = { first_name: 'Tester', id: 12345678 }; 
-                            console.warn("⚠️ Mode browser detected, using dummy ID");
                         }
                     }
 
@@ -227,7 +225,7 @@
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ tele_id: this.tgUser.id })
-                            }).catch(e => console.log(e));
+                            }).catch(() => {});
                         }
 
                         this.showFeedbackWidget();
@@ -266,14 +264,14 @@
                 loadHistory() {
                     // Fetch dari main.py (Nanti dibikin rutenya)
                     fetch(`/api/v1/chat/history?tele_id=${this.tgUser.id}`)
-                        .then(res => res.json())
-                        .then(data => {
-                            if(data.status === 'success' && data.history && data.history.length > 0) {
+                        .then(async (res) => ({ res, data: await res.json() }))
+                        .then(({ res, data }) => {
+                            if(res.ok && data.status === 'success' && data.history && data.history.length > 0) {
                                 this.messages = data.history;
                                 this.scrollToBottom();
                             }
                         })
-                        .catch(err => console.error("No history:", err));
+                        .catch(() => {});
                 },
 
                 sendMessage() {
@@ -303,16 +301,16 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload)
                     })
-                    .then(res => res.json())
-                    .then(data => {
+                    .then(async (res) => ({ res, data: await res.json() }))
+                    .then(({ res, data }) => {
                         this.isTyping = false;
-                        if (data.status === 'success') {
+                        if (res.ok && data.status === 'success') {
                             this.messages.push({ role: 'model', content: data.reply });
                             if (window.Telegram && window.Telegram.WebApp.HapticFeedback) {
                                 window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
                             }
                         } else {
-                            this.messages.push({ role: 'system', content: 'Sistem AI sedang sibuk, mohon tunggu sebentar.' });
+                            this.messages.push({ role: 'system', content: data.message || 'Sistem AI sedang sibuk, mohon tunggu sebentar.' });
                         }
                         this.scrollToBottom();
                     })

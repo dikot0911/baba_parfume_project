@@ -1,6 +1,7 @@
 import os
 import sys
 from typing import Any, List, Optional
+import logging
 from datetime import datetime
 
 from fastapi import FastAPI, Request, Form, HTTPException, status
@@ -16,54 +17,64 @@ import asyncio
 # ==============================================================================
 # IMPORT BOT MODULE (Sihir Integrasinya di Sini)
 # ==============================================================================
+logger = logging.getLogger("baba.main")
+logging.basicConfig(level=logging.INFO)
+
 try:
-    print("🔍 [DEBUG] Mencoba import modul bot...")
-    from bot import bot, dp, router as bot_router, alarm_pesanan_pending
-    BOT_AVAILABLE = True
-    print("✅ [DEBUG] Modul bot berhasil di-import!")
+    from bot import (
+        BOT_RUNTIME_AVAILABLE,
+        alarm_pesanan_pending,
+        bot,
+        dp,
+        router as bot_router,
+    )
+    BOT_AVAILABLE = BOT_RUNTIME_AVAILABLE
 except Exception as e:
-    print(f"❌ [DEBUG] Gagal import bot.py: {e}")
+    logger.warning("Modul bot tidak aktif: %s", e)
     BOT_AVAILABLE = False
+    bot = None
+    dp = None
+    bot_router = None
+
 
 # 2. DEFINISI LIFESPAN (JANTUNG INTEGRASI)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # --- PROSES STARTUP ---
-    print("🚀 [LIFESPAN] Server FastAPI Sedang Start...")
-    
+    logger.info("Server FastAPI sedang start")
+
     bot_task = None
-    if BOT_AVAILABLE:
+    alarm_task = None
+    if BOT_AVAILABLE and bot and dp and bot_router:
         try:
-            print("🤖 [LIFESPAN] Menghidupkan Mesin Bot...")
-            dp.include_router(bot_router)
+            if bot_router not in dp.sub_routers:
+                dp.include_router(bot_router)
             await bot.delete_webhook(drop_pending_updates=True)
-            
-            # Jalanin Polling & Alarm di Background
-            asyncio.create_task(alarm_pesanan_pending(bot))
+
+            alarm_task = asyncio.create_task(alarm_pesanan_pending(bot))
             bot_task = asyncio.create_task(dp.start_polling(bot, handle_signals=False))
-            
-            print("✅ [LIFESPAN] Bot Telegram Berhasil Standby!")
+            logger.info("Bot Telegram standby")
         except Exception as e:
-            print(f"❌ [LIFESPAN] Error pas nyalain bot: {e}")
+            logger.warning("Bot Telegram gagal dinyalakan: %s", e)
     else:
-        print("⚠️ [LIFESPAN] Bot tidak dinyalakan karena import gagal.")
+        logger.info("Bot Telegram tidak aktif; aplikasi web tetap berjalan")
 
-    yield # Di sini aplikasi Web lu running
+    yield
 
-    # --- PROSES SHUTDOWN ---
-    print("🛑 [LIFESPAN] Mematikan bot...")
-    if bot_task:
-        bot_task.cancel()
-    await bot.session.close()
+    logger.info("Mematikan background task")
+    for task in (alarm_task, bot_task):
+        if task:
+            task.cancel()
+    if bot:
+        await bot.session.close()
 
 # ==============================================================================
 # 1. DATABASE CONNECTION & APP INIT
 # ==============================================================================
 try:
     from database import supabase
-    print("✅ [SYSTEM] Database Supabase Connected!")
+    logger.info("Database module loaded")
 except ImportError:
-    print("❌ [SYSTEM] File database.py tidak ditemukan!")
+    logger.warning("File database.py tidak ditemukan")
     supabase = None
 
 app = FastAPI(
@@ -112,6 +123,14 @@ def get_pending_count() -> int:
         return len(res.data or [])
     except:
         return 0
+
+
+def api_success(**payload):
+    return {"status": "success", **payload}
+
+
+def api_error(message: str, status_code: int = 400, **payload):
+    return JSONResponse(status_code=status_code, content={"status": "error", "message": message, **payload})
 
 # ==============================================================================
 # 3. DATA SANITIZERS (PEMBERSIH DATA)
@@ -171,7 +190,7 @@ async def read_root(request: Request):
             produk_aktif = [normalize_product(p) for p in (res_prod.data or [])]
             
         except Exception as e:
-            print(f"❌ [ERROR LOAD FRONTEND CUSTOMER]: {e}")
+            logger.warning("Gagal load frontend customer: %s", e)
 
     # 3. Lempar semua data mateng ke file index.html
     return templates.TemplateResponse(request=request, name="customer/index.html", context={
@@ -266,11 +285,11 @@ async def api_process_checkout(request: Request):
                 )
                 asyncio.create_task(bot_instance.send_message(chat_id=ADMIN_ID, text=alert_admin, parse_mode="HTML"))
 
-        return {"status": "success", "order_number": order_number}
+        return api_success(order_number=order_number)
 
     except Exception as e:
-        print(f"❌ [API CHECKOUT ERROR]: {e}")
-        return JSONResponse(status_code=500, content={"error": str(e)})
+        logger.warning("API checkout error: %s", e)
+        return api_error(str(e), status_code=500)
         
 # ==============================================================================
 # ROUTER 2: ADMIN DASHBOARD (ANALYTICS ENGINE)
@@ -337,7 +356,7 @@ async def admin_dashboard(request: Request):
             top_products = sorted(produk_data, key=lambda x: x.get('stock_quantity', 0))[:3]
 
         except Exception as e:
-            print(f"❌ [ERROR DASHBOARD]: {e}")
+            logger.warning("Error dashboard: %s", e)
 
     # Lempar ke dashboard.html yang baru!
     return templates.TemplateResponse(request=request, name="admin/dashboard.html", context={
@@ -358,7 +377,7 @@ async def admin_stock(request: Request):
             response = supabase.table("products").select("*").order("id").execute()
             data_parfum = [normalize_product(item) for item in (response.data or [])]
         except Exception as e:
-            print(f"❌ [ERROR STOK]: {e}")
+            logger.warning("Error stok: %s", e)
 
     return templates.TemplateResponse(request=request, name="admin/stock.html", context={
         "request": request, 
@@ -397,7 +416,7 @@ async def add_product(
         supabase.table("products").insert(data_input).execute()
         return RedirectResponse(url="/admin/stock", status_code=status.HTTP_303_SEE_OTHER)
     except Exception as e:
-        print(f"❌ [GAGAL SIMPAN PRODUK]: {e}")
+        logger.warning("Gagal simpan produk: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/admin/stock/edit/{pid}", tags=["Admin Inventory"])
@@ -430,12 +449,12 @@ async def edit_product(
             }
             # Simpan ke tabel stock_logs di Supabase
             supabase.table("stock_logs").insert(log_payload).execute()
-            print(f"✅ [AUDIT LOG] Berhasil {stock_action} {adj_amount} pcs untuk parfum ID {pid}")
+            logger.info("Audit stok tersimpan untuk parfum %s", pid)
 
         return RedirectResponse(url="/admin/stock", status_code=status.HTTP_303_SEE_OTHER)
     
     except Exception as e:
-        print(f"❌ [ERROR EDIT STOK]: {e}")
+        logger.warning("Error edit stok: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/admin/stock/delete/{pid}", tags=["Admin Inventory"])
@@ -461,7 +480,7 @@ async def admin_orders(request: Request):
             ).order("created_at", desc=True).execute()
             pesanan = res.data or []
         except Exception as e:
-            print(f"❌ [ERROR PESANAN]: {e}")
+            logger.warning("Error pesanan: %s", e)
             
     return templates.TemplateResponse(request=request, name="admin/orders.html", context={
         "request": request, 
@@ -498,13 +517,13 @@ async def update_order_status(order_id: str = Form(...), status_order: str = For
                     from bot import bot as bot_instance
                     import asyncio
                     asyncio.create_task(bot_instance.send_message(chat_id=tele_id, text=pesan_notif))
-                    print(f"✅ [NOTIF BOT] Berhasil kirim update status ke {cust_name}")
+                    logger.info("Notif bot terkirim ke %s", cust_name)
             except Exception as e:
-                print(f"⚠️ [NOTIF BOT ERROR] Gagal kirim notif telegram: {e}")
+                logger.warning("Notif bot gagal: %s", e)
 
         return RedirectResponse(url="/admin/orders", status_code=status.HTTP_303_SEE_OTHER)
     except Exception as e:
-        print(f"❌ [ERROR UPDATE STATUS]: {e}")
+        logger.warning("Error update status: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/admin/customers", response_class=HTMLResponse, tags=["Admin CRM"])
@@ -527,7 +546,7 @@ async def admin_customers(request: Request):
                 c['calc_total_spent'] = sum(float(o['total_amount']) for o in c_orders)
                 
         except Exception as e:
-            print(f"❌ [ERROR PELANGGAN]: {e}")
+            logger.warning("Error pelanggan: %s", e)
             
     return templates.TemplateResponse(request=request, name="admin/customers.html", context={
         "request": request, 
@@ -571,7 +590,7 @@ async def admin_settings(request: Request):
             res = supabase.table("store_settings").select("*").eq("id", 1).single().execute()
             if res.data: settings_data = res.data
         except Exception as e:
-            print(f"⚠️ [INFO SETTING]: Belum ada data setting, pake default.")
+            logger.info("Store settings belum ada, memakai default")
             
     return templates.TemplateResponse(request=request, name="admin/settings.html", context={
         "request": request, 
@@ -597,10 +616,10 @@ async def update_settings(
             "is_bot_active": bot_status
         }
         supabase.table("store_settings").upsert({**payload, "id": 1}).execute()
-        print("✅ [SUKSES] Setting berhasil di-update!")
+        logger.info("Setting berhasil di-update")
         return RedirectResponse(url="/admin/settings", status_code=status.HTTP_303_SEE_OTHER)
     except Exception as e:
-        print(f"❌ [ERROR SETTING]: {e}")
+        logger.warning("Error setting: %s", e)
         raise HTTPException(status_code=500, detail="Gagal menyimpan pengaturan.")
 
 # ==============================================================================
@@ -619,30 +638,28 @@ async def get_chat_history(tele_id: int):
         # Cari ID sesi yang aktif (is_active = True)
         res_sess = supabase.table("ai_chat_sessions").select("id").eq("telegram_id", tele_id).eq("is_active", True).execute()
         if not res_sess.data:
-            return {"status": "success", "history": []}
+            return api_success(history=[])
             
         sid = res_sess.data[0]['id']
         res_msg = supabase.table("ai_chat_messages").select("role, content").eq("session_id", sid).order("created_at", desc=False).execute()
-        return {"status": "success", "history": res_msg.data or []}
-    except:
-        return {"status": "success", "history": []}
+        return api_success(history=res_msg.data or [])
+    except Exception:
+        return api_success(history=[])
 
 @app.post("/api/v1/chat/send")
 async def chat_ai_send(request: Request):
     data = await request.json()
     tele_id = data.get("tele_id")
-    user_msg = data.get("message")
-    
-    # VALIDASI KRUSIAL: Cek apakah tele_id beneran ada angkanya
+    user_msg = (data.get("message") or "").strip()
+
     if not tele_id or str(tele_id).strip() == "":
-        return JSONResponse(
-            status_code=400, 
-            content={"status": "error", "message": "ID Telegram tidak valid (kosong)"}
-        )
-    
-    # Lanjut panggil ai_agent
+        return api_error("ID Telegram tidak valid (kosong)", status_code=400)
+
+    if not user_msg:
+        return api_error("Pesan tidak boleh kosong", status_code=400)
+
     ai_reply = await get_ai_recommendation(int(tele_id), user_msg)
-    return {"status": "success", "reply": ai_reply}
+    return api_success(reply=ai_reply)
 
 @app.post("/api/v1/chat/reset")
 async def chat_reset(request: Request):
@@ -650,10 +667,12 @@ async def chat_reset(request: Request):
     data = await request.json()
     tele_id = data.get("tele_id")
     try:
-        supabase.table("ai_chat_sessions").update({"is_active": False}).eq("telegram_id", tele_id).execute()
-        return {"status": "success"}
-    except:
-        return {"status": "error"}
+        if supabase:
+            supabase.table("ai_chat_sessions").update({"is_active": False}).eq("telegram_id", tele_id).execute()
+        return api_success()
+    except Exception as e:
+        logger.warning("Gagal reset chat: %s", e)
+        return api_error("Gagal mereset sesi chat", status_code=500)
 
 # ==============================================================================
 # ROUTER: ADMIN CS PANEL (INTERCEPT MODE)
@@ -672,19 +691,23 @@ async def api_admin_get_sessions():
     """Admin narik daftar semua orang yang lagi chatan"""
     try:
         # Join ke tabel customers biar dapet nama asli si user
+        if not supabase:
+            return api_success(sessions=[])
         res = supabase.table("ai_chat_sessions").select("*, customers(full_name, username)").order("created_at", desc=True).execute()
-        return {"status": "success", "sessions": res.data or []}
+        return api_success(sessions=res.data or [])
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        return api_error(str(e), status_code=500)
 
 @app.get("/api/v1/admin/cs/messages")
 async def api_admin_get_messages(session_id: int):
     """Admin ngintip isi percakapan per orang"""
     try:
+        if not supabase:
+            return api_success(messages=[])
         res = supabase.table("ai_chat_messages").select("*").eq("session_id", session_id).order("created_at", desc=False).execute()
-        return {"status": "success", "messages": res.data or []}
+        return api_success(messages=res.data or [])
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        return api_error(str(e), status_code=500)
 
 @app.post("/api/v1/admin/cs/send-manual")
 async def api_admin_send_manual(request: Request):
@@ -695,6 +718,9 @@ async def api_admin_send_manual(request: Request):
     msg_text = data.get("message")
 
     try:
+        if not supabase:
+            return api_error("Database chat belum terhubung", status_code=503)
+
         # 1. Catat ke DB sebagai 'admin' biar ada history-nya
         supabase.table("ai_chat_messages").insert({
             "session_id": sid, "role": "admin", "content": msg_text
@@ -706,9 +732,9 @@ async def api_admin_send_manual(request: Request):
             # Kirim pake label Admin biar usernya tau itu lu yang bales
             await bot_instance.send_message(chat_id=tele_id, text=f"👨‍💻 <b>Admin BABA:</b>\n{msg_text}", parse_mode="HTML")
         
-        return {"status": "success"}
+        return api_success()
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        return api_error(str(e), status_code=500)
 
 # ==============================================================================
 # ROUTER 6: API EXTERNAL (BUAT FRONTEND / MINI APP TELEGRAM)
@@ -717,7 +743,7 @@ async def api_admin_send_manual(request: Request):
 async def api_get_live_products():
     """Jalur pipa khusus biar index.html bisa nyedot data stok realtime"""
     if not supabase:
-        return JSONResponse(status_code=500, content={"error": "Database tidak terhubung"})
+        return api_success(data=[])
     try:
         # Tarik semua produk yang statusnya aktif
         res = supabase.table("products").select("*").eq("is_active", True).order("id").execute()
@@ -725,10 +751,10 @@ async def api_get_live_products():
         # Pake fungsi pembersih data (normalize_product) biar ga error di frontend
         data_bersih = [normalize_product(p) for p in (res.data or [])]
         
-        return {"status": "success", "data": data_bersih}
+        return api_success(data=data_bersih)
     except Exception as e:
-        print(f"❌ [ERROR API PRODUK]: {e}")
-        return JSONResponse(status_code=500, content={"error": str(e)})
+        logger.warning("Error API produk: %s", e)
+        return api_error(str(e), status_code=500)
     
 # ==============================================================================
 # EKSEKUSI SERVER
