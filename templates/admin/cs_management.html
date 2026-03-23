@@ -205,13 +205,18 @@
                 try {
                     const res = await fetch('/api/v1/admin/cs/sessions');
                     const data = await res.json();
+                    
                     if(data.status === 'success') {
                         this.sessions = data.sessions;
                         this.stats.total_sessions = data.sessions.length;
                         this.stats.active_sessions = data.sessions.filter(s => s.is_active).length;
                         this.stats.admin_takes = data.admin_takes || 0;
+                    } else {
+                        console.error("❌ Gagal load sesi dari server:", data.message);
                     }
-                } catch (e) { /* silently handled to keep dashboard clean */ }
+                } catch (e) { 
+                    console.error("❌ Error fetch jaringan:", e); 
+                }
             },
 
             filteredSessions() {
