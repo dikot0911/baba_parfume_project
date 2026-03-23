@@ -102,7 +102,7 @@
             </a>
             {% endif %}
 
-            {% if admin_role in ['super_admin', 'marketing', 'cs', 'visitor'] %}
+            {% if admin_role in ['super_admin', 'marketing', 'cs'] %}
             <a href="/admin/cs" class="flex items-center justify-between px-4 py-3 rounded-r-xl transition-all duration-200 {% if '/admin/cs' in current_path %}nav-item-active{% else %}nav-item-inactive{% endif %} group">
                 <div class="flex items-center space-x-3">
                     <i data-lucide="bot-message-square" class="w-5 h-5 group-hover:text-yellow-400 transition-colors"></i>
