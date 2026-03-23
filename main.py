@@ -969,9 +969,28 @@ async def api_admin_get_sessions():
     """Mengambil daftar list obrolan yang sedang aktif/riwayat"""
     try:
         if not supabase: return api_success(sessions=[])
-        res = supabase.table("ai_chat_sessions").select("*, customers(full_name, username)").order("created_at", desc=True).execute()
-        return api_success(sessions=res.data or [])
+        
+        # 1. Tarik data sesi (TANPA JOIN LANGSUNG KARENA GA ADA FK DI DB)
+        res_sess = supabase.table("ai_chat_sessions").select("*").order("created_at", desc=True).execute()
+        sessions = res_sess.data or []
+        
+        # 2. Kalau ada sesi, tarik data customer manual trus gabungin
+        if sessions:
+            tele_ids = list(set([s["telegram_id"] for s in sessions]))
+            # Tarik nama pelanggan berdasarkan telegram_id yang lagi nge-chat
+            res_cust = supabase.table("customers").select("telegram_id, full_name, username").in_("telegram_id", tele_ids).execute()
+            
+            # Bikin kamus (map) buat nyocokin data
+            cust_map = {c["telegram_id"]: {"full_name": c.get("full_name"), "username": c.get("username")} for c in (res_cust.data or [])}
+            
+            # Tempelin nama customer ke masing-masing sesi chat
+            for s in sessions:
+                s["customers"] = cust_map.get(s["telegram_id"], {"full_name": "Pelanggan Baru", "username": "Anonymous"})
+                
+        return api_success(sessions=sessions)
+        
     except Exception as e:
+        logger.error(f"❌ [CS SESSIONS ERROR]: {e}")
         return api_error(str(e), status_code=500)
 
 @app.get("/api/v1/admin/cs/messages", tags=["API Admin CRM"], dependencies=[require_admin_roles("super_admin", "marketing", "cs")])
