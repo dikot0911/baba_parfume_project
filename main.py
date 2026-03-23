@@ -679,7 +679,7 @@ async def api_admin_get_sessions():
 async def api_admin_get_messages(session_id: int):
     """Admin ngintip isi percakapan per orang"""
     try:
-        res = supabase.table("ai_chat_messages").select("*").eq("session_id", session_id).order("created_at", asc=True).execute()
+        res = supabase.table("ai_chat_messages").select("*").eq("session_id", session_id).order("created_at", desc=False).execute()
         return {"status": "success", "messages": res.data or []}
     except Exception as e:
         return {"status": "error", "message": str(e)}
