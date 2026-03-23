@@ -360,7 +360,7 @@ async def admin_stock(request: Request):
         except Exception as e:
             print(f"❌ [ERROR STOK]: {e}")
 
-    return templates.TemplateResponse("admin/stock.html", {
+    return templates.TemplateResponse(request=request, name="admin/stock.html", context={
         "request": request, 
         "produk": data_parfum,
         "pending_count": get_pending_count()
@@ -463,7 +463,7 @@ async def admin_orders(request: Request):
         except Exception as e:
             print(f"❌ [ERROR PESANAN]: {e}")
             
-    return templates.TemplateResponse("admin/orders.html", {
+    return templates.TemplateResponse(request=request, name="admin/orders.html", context={
         "request": request, 
         "pesanan": pesanan, 
         "pending_count": get_pending_count()
@@ -529,7 +529,7 @@ async def admin_customers(request: Request):
         except Exception as e:
             print(f"❌ [ERROR PELANGGAN]: {e}")
             
-    return templates.TemplateResponse("admin/customers.html", {
+    return templates.TemplateResponse(request=request, name="admin/customers.html", context={
         "request": request, 
         "pelanggan": pelanggan, 
         "pending_count": get_pending_count()
@@ -573,8 +573,10 @@ async def admin_settings(request: Request):
         except Exception as e:
             print(f"⚠️ [INFO SETTING]: Belum ada data setting, pake default.")
             
-    return templates.TemplateResponse("admin/settings.html", {
-        "request": request, "settings": settings_data, "pending_count": get_pending_count()
+    return templates.TemplateResponse(request=request, name="admin/settings.html", context={
+        "request": request, 
+        "settings": settings_data, 
+        "pending_count": get_pending_count()
     })
 
 @app.post("/admin/settings/update", tags=["Admin Settings"])
