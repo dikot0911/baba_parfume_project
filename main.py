@@ -186,21 +186,46 @@ class ChatResetPayload(BaseModel):
     tele_id: int
 
 # ==============================================================================
-# 6. AUTHENTICATION ENGINE (SISTEM GEMBOK ADMIN)
+# 6. AUTHENTICATION ENGINE (SISTEM GEMBOK ADMIN & STAFF) 🔐
 # ==============================================================================
+import hashlib
+import base64
+
+def create_secure_cookie(username: str, role: str, name: str) -> str:
+    """Bikin tiket cookie yang dienkripsi biar ga bisa dipalsuin hacker"""
+    raw_data = f"{username}|{role}|{name}|{SECRET_TOKEN}"
+    signature = hashlib.sha256(raw_data.encode()).hexdigest()
+    # Gabungin data asli sama tanda tangannya (signature), lalu ubah ke Base64
+    cookie_value = base64.b64encode(f"{username}|{role}|{name}|{signature}".encode()).decode()
+    return cookie_value
+
 async def verify_admin(request: Request):
-    """Dependency: Mengamankan halaman HTML Admin dari penyusup"""
+    """Dependency: Mengamankan HTML Admin & Ngebaca Jabatan (Role)"""
     token = request.cookies.get(COOKIE_NAME)
-    if not token or token != SECRET_TOKEN:
-        logger.warning(f"🔒 [AUTH] Akses ditolak ke {request.url.path}. Redirect ke login.")
+    if not token:
         raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/admin/login"})
-    return True
+    
+    try:
+        raw_decoded = base64.b64decode(token).decode()
+        username, role, name, signature = raw_decoded.split("|")
+        
+        # Validasi apakah cookie ini asli buatan sistem kita
+        expected_sig = hashlib.sha256(f"{username}|{role}|{name}|{SECRET_TOKEN}".encode()).hexdigest()
+        if signature != expected_sig:
+            raise Exception("Signature Cookie Dipalsukan!")
+        
+        # Simpan data profil ke 'state' biar bisa dibaca sama Jinja2 HTML
+        request.state.admin_user = username
+        request.state.admin_role = role
+        request.state.admin_name = name
+        return True
+    except Exception as e:
+        logger.warning(f"🔒 [AUTH HACK ATTEMPT] Cookie gak valid: {e}")
+        raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/admin/login"})
 
 async def verify_admin_api(request: Request):
-    """Dependency: Mengamankan API Admin dari POSTMAN/Hacker"""
-    token = request.cookies.get(COOKIE_NAME)
-    if not token or token != SECRET_TOKEN:
-        raise HTTPException(status_code=401, detail="Unauthorized. Sesi admin tidak valid atau sudah habis.")
+    """Dependency: Mengamankan API Admin"""
+    await verify_admin(request) # Pake logika yang sama aja
     return True
 
 # ==============================================================================
@@ -276,34 +301,49 @@ def normalize_product(item: dict) -> dict:
 # ==============================================================================
 @app.get("/admin/login", response_class=HTMLResponse, tags=["Admin Auth"])
 async def login_page(request: Request):
-    """Menampilkan halaman login elegan"""
     return templates.TemplateResponse(request=request, name="admin/login.html")
 
 @app.post("/admin/login", response_class=HTMLResponse, tags=["Admin Auth"])
 async def do_login(request: Request, username: str = Form(...), password: str = Form(...)):
-    """Memproses kredensial dan menerbitkan tiket (Cookie)"""
+    """Memproses Login: Cek Super Admin dulu, kalau bukan baru cari di Database Staff"""
+    role = ""
+    name = ""
+    
+    # 1. CEK SUPER ADMIN (Data dari .env)
     if username == ADMIN_USER and password == ADMIN_PASS:
-        logger.info(f"🔓 [AUTH] Admin {username} berhasil login.")
-        response = RedirectResponse(url="/admin", status_code=status.HTTP_303_SEE_OTHER)
-        # Set cookie tahan 12 jam, HttpOnly agar tidak bisa dicuri XSS Javascript
-        response.set_cookie(key=COOKIE_NAME, value=SECRET_TOKEN, httponly=True, max_age=43200, secure=True)
-        return response
+        role = "super_admin"
+        name = "Dewa BABA (Super Admin)"
+        logger.info(f"🔓 [AUTH] SUPER ADMIN berhasil login.")
+        
+    # 2. CEK STAFF BIASA (Data dari Tabel 'admins' di Database)
     else:
-        logger.warning(f"🚨 [AUTH] Percobaan login gagal dengan username: {username}")
-        return templates.TemplateResponse(
-            request=request, 
-            name="admin/login.html", 
-            context={"error": "Username atau Password tidak valid!"}
-        )
+        if not supabase:
+            return templates.TemplateResponse(request=request, name="admin/login.html", context={"error": "Sistem Database Offline!"})
+        
+        # Hash password input buat dicocokin sama hash di database
+        hashed_pw = hashlib.sha256(password.encode()).hexdigest()
+        res = supabase.table("admins").select("*").eq("username", username).eq("password_hash", hashed_pw).execute()
+        
+        if not res.data:
+            logger.warning(f"🚨 [AUTH] Gagal login username: {username}")
+            return templates.TemplateResponse(request=request, name="admin/login.html", context={"error": "Username atau Password salah bre!"})
+        
+        staff_data = res.data[0]
+        role = staff_data['role']
+        name = staff_data['full_name']
+        logger.info(f"🔓 [AUTH] STAFF '{name}' ({role}) berhasil login.")
+
+    # 3. TERBITKAN TIKET COOKIE AMAN
+    cookie_val = create_secure_cookie(username, role, name)
+    response = RedirectResponse(url="/admin", status_code=status.HTTP_303_SEE_OTHER)
+    response.set_cookie(key=COOKIE_NAME, value=cookie_val, httponly=True, max_age=43200, secure=True) # 12 Jam
+    return response
 
 @app.get("/admin/logout", tags=["Admin Auth"])
 async def do_logout():
-    """Menghancurkan tiket sesi dan menendang keluar"""
     response = RedirectResponse(url="/admin/login", status_code=status.HTTP_303_SEE_OTHER)
     response.delete_cookie(COOKIE_NAME)
-    logger.info("🔒 [AUTH] Admin telah logout.")
     return response
-
 
 # ==============================================================================
 # ROUTER 1: CUSTOMER FRONTEND (MINI APP & EXTERNAL API)
@@ -894,7 +934,69 @@ async def api_admin_send_manual(payload: AdminManualChatPayload):
         logger.error(f"❌ [MANUAL CHAT ERROR]: {e}")
         return api_error("Gagal mengirim pesan manual", status_code=500)
 
-    
+# ==============================================================================
+# ROUTER 8: MANAJEMEN STAFF & HAK AKSES (ZONA DEWA 🔐)
+# ==============================================================================
+@app.get("/admin/staff", response_class=HTMLResponse, tags=["Admin Dewa"], dependencies=[Depends(verify_admin)])
+async def admin_staff_page(request: Request):
+    """Menampilkan daftar karyawan BABA, khusus Super Admin"""
+    # Validasi lapis kedua, pastikan cuma dewa yang bisa buka
+    if getattr(request.state, 'admin_role', '') != 'super_admin':
+        raise HTTPException(status_code=403, detail="Minggir bre, lu bukan Super Admin!")
+        
+    staff_list = []
+    if supabase:
+        try:
+            res = supabase.table("admins").select("*").order("created_at", desc=True).execute()
+            staff_list = res.data or []
+        except Exception as e:
+            logger.error(f"❌ [STAFF DB ERROR]: {e}")
+
+    return templates.TemplateResponse(request=request, name="admin/staff.html", context={
+        "request": request, 
+        "staffs": staff_list,
+        "admin_name": request.state.admin_name,
+        "admin_role": request.state.admin_role,
+        "pending_count": get_pending_count()
+    })
+
+@app.post("/admin/staff/add", tags=["Admin Dewa"], dependencies=[Depends(verify_admin)])
+async def add_new_staff(
+    request: Request,
+    username: str = Form(...),
+    password: str = Form(...),
+    full_name: str = Form(...),
+    role: str = Form(...)
+):
+    if getattr(request.state, 'admin_role', '') != 'super_admin':
+        raise HTTPException(status_code=403, detail="Akses Ditolak!")
+
+    # Enkripsi password sebelum masuk DB
+    import hashlib
+    hashed_pw = hashlib.sha256(password.encode()).hexdigest()
+
+    try:
+        supabase.table("admins").insert({
+            "username": username.lower().strip(),
+            "password_hash": hashed_pw,
+            "full_name": full_name,
+            "role": role
+        }).execute()
+        logger.info(f"👮 [STAFF] Akun baru dibuat: {username} sebagai {role}")
+        return RedirectResponse(url="/admin/staff", status_code=status.HTTP_303_SEE_OTHER)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/admin/staff/delete/{admin_id}", tags=["Admin Dewa"], dependencies=[Depends(verify_admin)])
+async def delete_staff(request: Request, admin_id: int):
+    if getattr(request.state, 'admin_role', '') != 'super_admin':
+        raise HTTPException(status_code=403, detail="Akses Ditolak!")
+    try:
+        supabase.table("admins").delete().eq("id", admin_id).execute()
+        return RedirectResponse(url="/admin/staff", status_code=status.HTTP_303_SEE_OTHER)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 # ==============================================================================
 # ENTRY POINT RUNNER (UVICORN)
 # ==============================================================================
