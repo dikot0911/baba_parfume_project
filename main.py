@@ -365,6 +365,28 @@ def normalize_product(item: dict) -> dict:
         "is_active": bool(item.get("is_active", True))
     }
 
+# ==============================================================================
+# 8. PYDANTIC SCHEMAS KHUSUS FINANCE & BELANJA
+# ==============================================================================
+class ManualTransactionPayload(BaseModel):
+    account_id: int
+    category_id: int
+    transaction_type: str
+    amount: float = Field(..., gt=0)
+    description: str
+
+class PurchaseItemPayload(BaseModel):
+    product_id: Optional[int] = None
+    item_name: str
+    quantity: int = Field(..., gt=0)
+    capital_price_per_unit: float = Field(..., ge=0)
+
+class PurchaseOrderPayload(BaseModel):
+    account_id: int
+    shipping_cost: float = Field(default=0.0)
+    notes: str
+    items: List[PurchaseItemPayload]
+
 
 # ==============================================================================
 # ROUTER 0: LOGIN & LOGOUT ADMIN (PINTU GERBANG)
@@ -839,29 +861,148 @@ async def admin_orders(request: Request):
 
 @app.post("/admin/update-order-status", tags=["Admin CRM"], dependencies=[require_admin_roles("super_admin", "oprasional")])
 async def update_order_status(order_id: str = Form(...), status_order: str = Form(..., alias="status")):
-    """Ubah status resi dan tembak notifikasi via bot otomatis"""
+    """Ubah status resi, eksekusi finansial otomatis, pengembalian stok jika batal, dan notifikasi bot"""
     try:
-        # Update DB
-        supabase.table("orders").update({"status": status_order}).eq("id", order_id).execute()
-        logger.info(f"🔄 [ORDER] Status Order ID:{order_id} menjadi {status_order}")
+        # 0. Tarik Data Order Lama (Sebelum di-update) buat ngecek state sebelumnya
+        res_old_order = supabase.table("orders").select("status, total_amount, order_number, payment_method").eq("id", order_id).single().execute()
+        if not res_old_order.data:
+            raise HTTPException(status_code=404, detail="Order tidak ditemukan")
         
-        # Eksekusi Notifikasi Background Telegram
+        old_status = res_old_order.data.get("status", "").lower()
+        new_status = status_order.lower()
+        omset = float(res_old_order.data.get("total_amount", 0))
+        no_order = res_old_order.data.get("order_number")
+        payment_method = res_old_order.data.get("payment_method", "Cash")
+
+        # 1. Update DB Pesanan Utama
+        supabase.table("orders").update({"status": status_order}).eq("id", order_id).execute()
+        logger.info(f"🔄 [ORDER] Status Order ID:{order_id} berubah dari {old_status} menjadi {status_order}")
+
+        # ==========================================================
+        # 💸 MAGIC AUTOPILOT 1: PEMASUKAN DANA (IN)
+        # ==========================================================
+        # Jika orderan diproses/selesai, dan sebelumnya BUKAN diproses/selesai
+        if new_status in ["diproses", "selesai"] and old_status not in ["diproses", "selesai"]:
+            
+            # Cek apakah transaksi ini udah pernah dicatat di mutasi biar gak dobel
+            cek_mutasi = supabase.table("finance_mutations").select("id").eq("reference_order_id", order_id).eq("transaction_type", "IN").execute()
+            
+            if not cek_mutasi.data: # Kalau belum ada di buku kas
+                # Coba cari Bank ID berdasarkan payment_method (Misal bayar via "BCA", dia otomatis masuk bank BCA)
+                res_bank_search = supabase.table("finance_accounts").select("id, current_balance").ilike("bank_name", f"%{payment_method}%").execute()
+                if res_bank_search.data:
+                    target_bank_id = res_bank_search.data[0]["id"]
+                    saldo_skrg = float(res_bank_search.data[0]["current_balance"])
+                else:
+                    # Default Fallback (Misal Cash Laci)
+                    target_bank_id = 1 
+                    res_bank = supabase.table("finance_accounts").select("current_balance").eq("id", target_bank_id).single().execute()
+                    saldo_skrg = float(res_bank.data.get("current_balance", 0)) if res_bank.data else 0
+
+                saldo_baru = saldo_skrg + omset
+                # Update Saldo Bank
+                supabase.table("finance_accounts").update({"current_balance": saldo_baru}).eq("id", target_bank_id).execute()
+
+                # Cari kategori 'Penjualan'
+                cat_res = supabase.table("finance_categories").select("id").ilike("category_name", "%penjualan%").limit(1).execute()
+                cat_id = cat_res.data[0].get("id") if cat_res.data else 1
+
+                # Catat ke Mutasi Buku Kas
+                supabase.table("finance_mutations").insert({
+                    "account_id": target_bank_id,
+                    "category_id": cat_id,
+                    "transaction_type": "IN",
+                    "amount": omset,
+                    "balance_after": saldo_baru,
+                    "description": f"Penerimaan dana otomatis pesanan {no_order} via {payment_method}",
+                    "reference_order_id": order_id
+                }).execute()
+                logger.info(f"💰 [FINANCE] Duit Rp {omset} dari {no_order} otomatis masuk ke Kas (Bank ID: {target_bank_id})!")
+
+        # ==========================================================
+        # 📦 MAGIC AUTOPILOT 2: KEMBALIKAN STOK & REFUND (JIKA DIBATALKAN)
+        # ==========================================================
+        elif new_status == "dibatalkan" and old_status != "dibatalkan":
+            
+            # A. KEMBALIKAN STOK BARANG (RESTOCK)
+            res_items = supabase.table("order_items").select("product_id, quantity").eq("order_id", order_id).execute()
+            for item in (res_items.data or []):
+                pid = item["product_id"]
+                qty_to_restore = item["quantity"]
+                
+                # Cek stok barang saat ini
+                res_prod = supabase.table("products").select("stock_quantity").eq("id", pid).single().execute()
+                if res_prod.data:
+                    current_stock = int(res_prod.data.get("stock_quantity", 0))
+                    restored_stock = current_stock + qty_to_restore
+                    
+                    # Balikin stok fisik
+                    supabase.table("products").update({"stock_quantity": restored_stock}).eq("id", pid).execute()
+                    # Catat ke log stok audit
+                    supabase.table("stock_logs").insert({
+                        "product_id": pid,
+                        "action": "RESTORE_BATAL",
+                        "adjustment_amount": qty_to_restore,
+                        "final_stock": restored_stock,
+                        "reason": f"Pengembalian stok dari pesanan batal: {no_order}"
+                    }).execute()
+            logger.info(f"📦 [INVENTORY] Stok barang untuk pesanan {no_order} berhasil dikembalikan ke gudang.")
+
+            # B. TARIK KEMBALI DANA JIKA SEBELUMNYA SUDAH MASUK BUKU KAS (REFUND)
+            cek_mutasi_masuk = supabase.table("finance_mutations").select("account_id").eq("reference_order_id", order_id).eq("transaction_type", "IN").execute()
+            cek_mutasi_keluar = supabase.table("finance_mutations").select("id").eq("reference_order_id", order_id).eq("transaction_type", "OUT").execute()
+            
+            # Jika dulu duitnya udah sempat masuk (status sempat diproses), tapi sekarang dibatalin
+            if cek_mutasi_masuk.data and not cek_mutasi_keluar.data:
+                bank_refund_id = cek_mutasi_masuk.data[0]["account_id"]
+                
+                res_bank = supabase.table("finance_accounts").select("current_balance").eq("id", bank_refund_id).single().execute()
+                if res_bank.data:
+                    saldo_skrg = float(res_bank.data.get("current_balance", 0))
+                    saldo_baru = saldo_skrg - omset # Tarik duitnya
+                    
+                    # Update Saldo Bank
+                    supabase.table("finance_accounts").update({"current_balance": saldo_baru}).eq("id", bank_refund_id).execute()
+                    
+                    # Catat Pengeluaran Refund
+                    cat_res = supabase.table("finance_categories").select("id").ilike("category_name", "%refund%").limit(1).execute()
+                    cat_id = cat_res.data[0].get("id") if cat_res.data else 1
+
+                    supabase.table("finance_mutations").insert({
+                        "account_id": bank_refund_id,
+                        "category_id": cat_id,
+                        "transaction_type": "OUT",
+                        "amount": omset,
+                        "balance_after": saldo_baru,
+                        "description": f"Koreksi/Refund dana pesanan batal {no_order}",
+                        "reference_order_id": order_id
+                    }).execute()
+                    logger.info(f"💸 [FINANCE REFUND] Dana Rp {omset} ditarik kembali karena {no_order} dibatalkan!")
+
+        # ==========================================================
+        # 🤖 3. Notifikasi Background Telegram (Dengan UX Baru)
+        # ==========================================================
         if BOT_AVAILABLE:
             try:
-                res_order = supabase.table("orders").select("order_number, customers(telegram_id, full_name)").eq("id", order_id).single().execute()
-                if res_order.data and res_order.data.get("customers"):
-                    tele_id = res_order.data["customers"]["telegram_id"]
-                    cust_name = res_order.data["customers"]["full_name"]
-                    no_order = res_order.data["order_number"]
+                res_order_cust = supabase.table("orders").select("customers(telegram_id, full_name)").eq("id", order_id).single().execute()
+                if res_order_cust.data and res_order_cust.data.get("customers"):
+                    tele_id = res_order_cust.data["customers"]["telegram_id"]
+                    cust_name = res_order_cust.data["customers"]["full_name"]
+                    
+                    # Emoji Dinamis biar Telegram pesannya lebih asik
+                    emoji_status = "✅" if new_status == "selesai" else "🚚" if new_status == "dikirim" else "❌" if new_status == "dibatalkan" else "👉"
                     
                     pesan_notif = (
                         f"🔔 <b>UPDATE PESANAN BABA PARFUME</b>\n\n"
                         f"Halo kak <b>{cust_name}</b>!\n"
                         f"Status pesanan kamu (<code>{no_order}</code>) sekarang:\n"
-                        f"👉 <b>{status_order.upper()}</b>\n\n"
-                        f"<i>Terima kasih kak! ✨</i>"
+                        f"{emoji_status} <b>{status_order.upper()}</b>\n\n"
                     )
-                    
+                    if new_status == "dibatalkan":
+                        pesan_notif += "<i>Mohon maaf ya kak pesanan ini dibatalkan. Hubungi admin via bot jika ada kendala.</i>"
+                    else:
+                        pesan_notif += "<i>Terima kasih kak! ✨</i>"
+                        
                     from bot import bot as bot_instance
                     asyncio.create_task(bot_instance.send_message(chat_id=tele_id, text=pesan_notif, parse_mode="HTML"))
             except Exception as e:
@@ -1106,6 +1247,281 @@ async def admin_profile_page(request: Request):
         "admin/profile.html", 
         admin_detail=admin_detail
     )
+
+# ==============================================================================
+# ROUTER 9: MODUL ASET KEUANGAN (ZONA DEWA & OPRASIONAL 🔐)
+# ==============================================================================
+@app.get("/admin/finance/aset", response_class=HTMLResponse, tags=["Admin Finance"], dependencies=[require_admin_roles("super_admin", "oprasional")])
+async def admin_finance_aset(request: Request):
+    """Menampilkan Dashboard Aset & Dompet (Mobile Banking Style)"""
+    accounts = []
+    total_liquid = 0.0
+    total_inventory = 0.0
+    recent_mutations = []
+    categories_in = []
+    categories_out = []
+
+    if supabase:
+        try:
+            # 1. Tarik Data Rekening Bank
+            res_acc = supabase.table("finance_accounts").select("*").eq("is_active", True).order("id").execute()
+            accounts = res_acc.data or []
+            total_liquid = sum(float(acc.get("current_balance", 0)) for acc in accounts)
+
+            # 2. Hitung Nilai Aset Barang Fisik (Stok * Harga Modal/Jual)
+            res_prod = supabase.table("products").select("stock_quantity, original_price").eq("is_active", True).execute()
+            for p in (res_prod.data or []):
+                total_inventory += float(p.get("stock_quantity", 0)) * float(p.get("original_price", 0))
+
+            # 3. Tarik Riwayat Mutasi Terakhir
+            res_mut = supabase.table("finance_mutations").select(
+                "*, finance_accounts(bank_name), finance_categories(category_name)"
+            ).order("created_at", desc=True).limit(5).execute()
+            recent_mutations = res_mut.data or []
+
+            # 4. Tarik Kategori Transaksi
+            res_cat = supabase.table("finance_categories").select("*").execute()
+            categories = res_cat.data or []
+            categories_in = [c for c in categories if c.get("type") == "INCOME"]
+            categories_out = [c for c in categories if c.get("type") == "EXPENSE"]
+
+        except Exception as e:
+            logger.error(f"❌ [FINANCE ASET ERROR]: {e}")
+
+    return render_admin_template(
+        request, "admin/finance_aset.html",
+        accounts=accounts,
+        total_liquid=total_liquid,
+        total_inventory=total_inventory,
+        total_aset=total_liquid + total_inventory,
+        recent_mutations=recent_mutations,
+        categories_in=categories_in,
+        categories_out=categories_out
+    )
+
+@app.post("/api/v1/finance/transaction", tags=["API Finance"], dependencies=[require_admin_roles("super_admin", "oprasional")])
+async def api_manual_transaction(request: Request, payload: ManualTransactionPayload):
+    """Mencatat Pemasukan/Pengeluaran manual (Suntikan modal, bayar listrik, dll)"""
+    if not supabase: return api_error("Database offline", 503)
+    
+    admin_id = None # Idealnya ditarik dari request.state jika id admin dilacak
+    
+    try:
+        # 1. Cek saldo akun saat ini
+        res_acc = supabase.table("finance_accounts").select("current_balance").eq("id", payload.account_id).single().execute()
+        if not res_acc.data:
+            return api_error("Rekening tidak ditemukan")
+        
+        current_balance = float(res_acc.data.get("current_balance", 0))
+        amount = float(payload.amount)
+
+        # 2. Hitung saldo baru
+        if payload.transaction_type == "IN":
+            new_balance = current_balance + amount
+        else:
+            if current_balance < amount:
+                return api_error("Saldo tidak cukup untuk pengeluaran ini!", 400)
+            new_balance = current_balance - amount
+
+        # 3. Update Saldo Rekening
+        supabase.table("finance_accounts").update({"current_balance": new_balance}).eq("id", payload.account_id).execute()
+
+        # 4. Catat ke Buku Besar (Mutasi)
+        supabase.table("finance_mutations").insert({
+            "account_id": payload.account_id,
+            "category_id": payload.category_id,
+            "transaction_type": payload.transaction_type,
+            "amount": amount,
+            "balance_after": new_balance,
+            "description": payload.description
+        }).execute()
+
+        logger.info(f"💸 [FINANCE] Transaksi {payload.transaction_type} senilai {amount} berhasil di akun {payload.account_id}")
+        return api_success(message="Transaksi berhasil dicatat", new_balance=new_balance)
+
+    except Exception as e:
+        logger.error(f"❌ [API TRX ERROR]: {e}")
+        return api_error("Gagal mencatat transaksi", 500)
+
+# ==============================================================================
+# ROUTER 10: MUTASI BUKU BESAR (ZONA DEWA 🔐)
+# ==============================================================================
+@app.get("/admin/finance/mutasi", response_class=HTMLResponse, tags=["Admin Finance"], dependencies=[require_admin_roles("super_admin", "oprasional")])
+async def admin_finance_mutasi(request: Request):
+    """Menampilkan Ledger / Riwayat Buku Besar Keseluruhan"""
+    mutations = []
+    accounts = []
+    if supabase:
+        try:
+            res_acc = supabase.table("finance_accounts").select("id, bank_name").execute()
+            accounts = res_acc.data or []
+
+            res_mut = supabase.table("finance_mutations").select(
+                "*, finance_accounts(bank_name), finance_categories(category_name, type)"
+            ).order("created_at", desc=True).limit(500).execute() # Limit agar tidak berat
+            mutations = res_mut.data or []
+        except Exception as e:
+            logger.error(f"❌ [FINANCE MUTASI ERROR]: {e}")
+
+    return render_admin_template(
+        request, "admin/finance_mutasi.html", 
+        mutations=mutations, accounts=accounts
+    )
+
+# ==============================================================================
+# ROUTER 11: LAPORAN LABA RUGI (HANYA SUPER ADMIN 🔐)
+# ==============================================================================
+@app.get("/admin/finance/report", response_class=HTMLResponse, tags=["Admin Finance"], dependencies=[require_admin_roles("super_admin")])
+async def admin_finance_report(request: Request):
+    """Generate Profit & Loss (P&L) Statement"""
+    report_data = {
+        "total_revenue": 0.0,
+        "total_hpp": 0.0,
+        "total_opex": 0.0,
+        "gross_profit": 0.0,
+        "net_profit": 0.0,
+        "margin": 0.0
+    }
+    
+    if supabase:
+        try:
+            # Mengambil mutasi bulan ini (Logika simplifikasi, di production pakai query tanggal)
+            current_month = datetime.now().strftime("%Y-%m")
+            res_mut = supabase.table("finance_mutations").select(
+                "amount, transaction_type, finance_categories(category_name)"
+            ).like("created_at", f"{current_month}%").execute()
+            
+            for m in (res_mut.data or []):
+                cat_name = str(m.get("finance_categories", {}).get("category_name", "")).lower()
+                amt = float(m.get("amount", 0))
+                
+                if m.get("transaction_type") == "IN":
+                    report_data["total_revenue"] += amt
+                elif m.get("transaction_type") == "OUT":
+                    # Identifikasi HPP (Belanja Stok & Ongkir impor)
+                    if "stok" in cat_name or "belanja" in cat_name or "jastip" in cat_name or "ongkir" in cat_name:
+                        report_data["total_hpp"] += amt
+                    else:
+                        report_data["total_opex"] += amt
+
+            report_data["gross_profit"] = report_data["total_revenue"] - report_data["total_hpp"]
+            report_data["net_profit"] = report_data["gross_profit"] - report_data["total_opex"]
+            if report_data["total_revenue"] > 0:
+                report_data["margin"] = round((report_data["net_profit"] / report_data["total_revenue"]) * 100, 2)
+
+        except Exception as e:
+            logger.error(f"❌ [FINANCE REPORT ERROR]: {e}")
+
+    return render_admin_template(request, "admin/finance_report.html", report=report_data)
+
+# ==============================================================================
+# ROUTER 12: MODUL BELANJA STOK (KULAKAN & JASTIP)
+# ==============================================================================
+@app.get("/admin/stock/belanja", response_class=HTMLResponse, tags=["Admin Inventory"], dependencies=[require_admin_roles("super_admin", "oprasional")])
+async def admin_stock_belanja(request: Request):
+    """Halaman rekap dan pembuatan Purchase Order (PO)"""
+    purchases = []
+    accounts = []
+    
+    if supabase:
+        try:
+            res_po = supabase.table("stock_purchases").select(
+                "*, finance_accounts(bank_name), stock_purchase_items(item_name)"
+            ).order("created_at", desc=True).execute()
+            purchases = res_po.data or []
+
+            res_acc = supabase.table("finance_accounts").select("id, bank_name, currency").eq("is_active", True).execute()
+            accounts = res_acc.data or []
+        except Exception as e:
+            logger.error(f"❌ [STOCK BELANJA ERROR]: {e}")
+
+    return render_admin_template(request, "admin/stock_belanja.html", purchases=purchases, accounts=accounts)
+
+@app.post("/api/v1/stock/belanja/process", tags=["API Inventory"], dependencies=[require_admin_roles("super_admin", "oprasional")])
+async def api_process_purchase_order(payload: PurchaseOrderPayload):
+    """CORE ENGINE: Memproses PO, potong uang bank, dan nambah stok fisik otomatis"""
+    if not supabase: return api_error("Database offline", 503)
+
+    try:
+        # 1. Validasi Saldo Bank Dulu
+        res_acc = supabase.table("finance_accounts").select("current_balance").eq("id", payload.account_id).single().execute()
+        if not res_acc.data: return api_error("Rekening tidak ditemukan")
+        
+        current_balance = float(res_acc.data.get("current_balance", 0))
+        total_items_cost = sum(i.quantity * i.capital_price_per_unit for i in payload.items)
+        grand_total = total_items_cost + payload.shipping_cost
+
+        if current_balance < grand_total:
+            return api_error(f"Saldo rekening tidak mencukupi! Butuh: {format_currency(grand_total)}")
+
+        # 2. Generate PO Number
+        po_number = f"PO-{datetime.now().strftime('%y%m')}-{str(uuid.uuid4())[:5].upper()}"
+
+        # 3. Insert Tabel `stock_purchases`
+        po_res = supabase.table("stock_purchases").insert({
+            "purchase_number": po_number,
+            "account_id": payload.account_id,
+            "total_items_cost": total_items_cost,
+            "shipping_cost": payload.shipping_cost,
+            "grand_total": grand_total,
+            "notes": payload.notes
+        }).execute()
+        po_id = po_res.data[0].get("id")
+
+        # 4. Insert Items & Tambah Stok Fisik
+        for item in payload.items:
+            subtotal = item.quantity * item.capital_price_per_unit
+            supabase.table("stock_purchase_items").insert({
+                "purchase_id": po_id,
+                "product_id": item.product_id,
+                "item_name": item.item_name,
+                "quantity": item.quantity,
+                "capital_price_per_unit": item.capital_price_per_unit,
+                "subtotal": subtotal
+            }).execute()
+
+            # Jika barang terkait dengan produk di etalase, tambah stoknya!
+            if item.product_id:
+                res_prod = supabase.table("products").select("stock_quantity").eq("id", item.product_id).single().execute()
+                if res_prod.data:
+                    new_stock = int(res_prod.data.get("stock_quantity", 0)) + item.quantity
+                    supabase.table("products").update({"stock_quantity": new_stock}).eq("id", item.product_id).execute()
+                    
+                    # Log penambahan stok
+                    supabase.table("stock_logs").insert({
+                        "product_id": item.product_id,
+                        "action": "BELANJA_INBOUND",
+                        "adjustment_amount": item.quantity,
+                        "final_stock": new_stock,
+                        "reason": f"Masuk dari PO: {po_number}"
+                    }).execute()
+
+        # 5. Potong Saldo Bank
+        new_balance = current_balance - grand_total
+        supabase.table("finance_accounts").update({"current_balance": new_balance}).eq("id", payload.account_id).execute()
+
+        # 6. Catat Ledger Pengeluaran (Mutasi)
+        # Cari Kategori 'Belanja Stok'
+        cat_res = supabase.table("finance_categories").select("id").ilike("category_name", "%belanja%").limit(1).execute()
+        cat_id = cat_res.data[0].get("id") if cat_res.data else 1 # Fallback ID 1 jika tidak nemu
+
+        supabase.table("finance_mutations").insert({
+            "account_id": payload.account_id,
+            "category_id": cat_id,
+            "transaction_type": "OUT",
+            "amount": grand_total,
+            "balance_after": new_balance,
+            "description": f"Pembayaran {po_number}. {payload.notes}",
+            "reference_purchase_id": po_id
+        }).execute()
+
+        logger.info(f"🚚 [PROCUREMENT] Purchase Order {po_number} senilai {grand_total} berhasil di-deploy!")
+        return api_success(message="PO Berhasil diproses", po_number=po_number)
+
+    except Exception as e:
+        logger.error(f"❌ [API PO ERROR]: {e}")
+        # Idealnya ada mekanisme manual rollback Supabase di sini jika gagal di tengah jalan
+        return api_error(f"Gagal memproses PO: {str(e)}", 500)
 
 # ==============================================================================
 # ENTRY POINT RUNNER (UVICORN)
