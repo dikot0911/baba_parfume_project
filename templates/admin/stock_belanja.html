@@ -1,0 +1,300 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Belanja Stok & Distribusi{% endblock %}
+{% block header %}Belanja Stok (Kulakan){% endblock %}
+{% block breadcrumb %}Manajemen Stok / Belanja{% endblock %}
+
+{% block content %}
+<div x-data="stockBelanja()" class="space-y-6 pb-10">
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div class="bg-gradient-to-br from-gray-900 to-black rounded-2xl p-5 shadow-xl border border-gray-800 relative overflow-hidden text-white group">
+            <div class="absolute -right-4 -top-4 w-24 h-24 bg-brand-500/20 rounded-full blur-2xl group-hover:bg-brand-500/30 transition-all"></div>
+            <div class="relative z-10 flex justify-between items-start">
+                <div>
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Belanja (Bulan Ini)</p>
+                    <h3 class="text-2xl font-black mb-1">Rp 12.000.000</h3>
+                    <p class="text-xs text-emerald-400 font-medium flex items-center gap-1"><i data-lucide="trending-down" class="w-3.5 h-3.5"></i> Lebih hemat 15% dari target</p>
+                </div>
+                <div class="p-2.5 bg-gray-800/80 rounded-xl border border-gray-700">
+                    <i data-lucide="shopping-cart" class="w-5 h-5 text-brand-400"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex justify-between items-start">
+            <div>
+                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Biaya Ongkir & Jastip</p>
+                <h3 class="text-2xl font-black text-gray-900 mb-1">Rp 1.500.000</h3>
+                <p class="text-xs text-orange-500 font-medium">12.5% dari total belanja</p>
+            </div>
+            <div class="p-2.5 bg-orange-50 rounded-xl border border-orange-100">
+                <i data-lucide="plane" class="w-5 h-5 text-orange-500"></i>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex justify-between items-start">
+            <div>
+                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total PO Aktif</p>
+                <h3 class="text-2xl font-black text-gray-900 mb-1">24 <span class="text-sm font-semibold text-gray-500">Nota</span></h3>
+                <p class="text-xs text-gray-500 font-medium">Bulan Maret 2026</p>
+            </div>
+            <div class="p-2.5 bg-blue-50 rounded-xl border border-blue-100">
+                <i data-lucide="file-text" class="w-5 h-5 text-blue-500"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden flex flex-col">
+        <div class="p-5 border-b border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gray-50/50">
+            <div class="relative w-full md:max-w-xs">
+                <i data-lucide="search" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
+                <input type="text" placeholder="Cari No. PO atau Catatan..." class="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 outline-none transition-all">
+            </div>
+            <button @click="openPOModal()" class="flex items-center justify-center gap-2 px-5 py-2.5 bg-brand-500 hover:bg-brand-600 text-brand-900 rounded-xl text-sm font-black shadow-lg shadow-brand-500/30 transition-all active:scale-95">
+                <i data-lucide="plus-circle" class="w-4 h-4"></i> Catat Belanja (PO) Baru
+            </button>
+        </div>
+
+        <div class="overflow-x-auto custom-scrollbar">
+            <table class="w-full text-left border-collapse whitespace-nowrap">
+                <thead>
+                    <tr class="bg-white border-b border-gray-100 text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                        <th class="px-6 py-4">No. PO & Tanggal</th>
+                        <th class="px-6 py-4">Catatan / Supplier</th>
+                        <th class="px-6 py-4 text-right">Modal Barang</th>
+                        <th class="px-6 py-4 text-right">Ongkir/Jastip</th>
+                        <th class="px-6 py-4 text-right">Total Keluar</th>
+                        <th class="px-6 py-4 text-center">Sumber Dana</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    
+                    <tr class="hover:bg-gray-50 transition-colors group">
+                        <td class="px-6 py-4">
+                            <p class="text-sm font-black text-gray-900 font-mono">PO-2603-012</p>
+                            <p class="text-xs font-medium text-gray-500 mt-0.5">22 Mar 2026, 09:15</p>
+                        </td>
+                        <td class="px-6 py-4">
+                            <p class="text-sm font-bold text-gray-800">Toko Indo - Tokopedia</p>
+                            <p class="text-xs text-gray-500 mt-0.5">Biang Dior 500ml, Botol 30ml (100pcs)</p>
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                            <p class="text-sm font-bold text-gray-700">Rp 1.100.000</p>
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                            <p class="text-sm font-bold text-orange-500">+ Rp 150.000</p>
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                            <p class="text-sm font-black text-red-600">Rp 1.250.000</p>
+                        </td>
+                        <td class="px-6 py-4 text-center">
+                            <span class="inline-flex px-2 py-1 rounded-md text-[10px] font-black bg-orange-100 text-orange-700 uppercase">Bank Jago</span>
+                        </td>
+                    </tr>
+
+                    <tr class="hover:bg-gray-50 transition-colors group">
+                        <td class="px-6 py-4">
+                            <p class="text-sm font-black text-gray-900 font-mono">PO-2603-011</p>
+                            <p class="text-xs font-medium text-gray-500 mt-0.5">18 Mar 2026, 14:20</p>
+                        </td>
+                        <td class="px-6 py-4">
+                            <p class="text-sm font-bold text-gray-800">Lakban & Plastik Packing</p>
+                            <p class="text-xs text-gray-500 mt-0.5">Beli lokal di Kamboja</p>
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                            <p class="text-sm font-bold text-gray-700">$ 25.00</p>
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                            <p class="text-sm font-bold text-orange-500">$ 0.00</p>
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                            <p class="text-sm font-black text-red-600">$ 25.00</p>
+                        </td>
+                        <td class="px-6 py-4 text-center">
+                            <span class="inline-flex px-2 py-1 rounded-md text-[10px] font-black bg-teal-100 text-teal-700 uppercase">ABA Bank</span>
+                        </td>
+                    </tr>
+
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+
+    <div x-show="isModalOpen" x-cloak class="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div x-show="isModalOpen" x-transition.opacity class="fixed inset-0 bg-gray-900/70 backdrop-blur-sm" @click="closePOModal()"></div>
+
+        <div x-show="isModalOpen" 
+             x-transition:enter="transition ease-out duration-300" 
+             x-transition:enter-start="opacity-0 translate-y-8 scale-95" 
+             x-transition:enter-end="opacity-100 translate-y-0 scale-100" 
+             x-transition:leave="transition ease-in duration-200" 
+             x-transition:leave-start="opacity-100 translate-y-0 scale-100" 
+             x-transition:leave-end="opacity-0 translate-y-8 scale-95"
+             class="relative bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-full flex flex-col border border-gray-100 overflow-hidden">
+            
+            <div class="px-6 py-5 border-b border-gray-100 bg-gray-50 flex justify-between items-center shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-brand-100 rounded-full flex items-center justify-center text-brand-600">
+                        <i data-lucide="shopping-cart" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-black text-gray-900">Buat Purchase Order (PO)</h2>
+                        <p class="text-xs font-medium text-gray-500">Catat belanja stok & otomatis potong saldo bank</p>
+                    </div>
+                </div>
+                <button @click="closePOModal()" class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="p-6 overflow-y-auto custom-scrollbar flex-1 bg-white">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    
+                    <div class="lg:col-span-2 space-y-4">
+                        <div class="flex justify-between items-end mb-2">
+                            <h3 class="text-sm font-bold text-gray-800 uppercase tracking-widest border-b-2 border-brand-500 pb-1 inline-block">Daftar Barang</h3>
+                            <button @click="addItem()" type="button" class="text-xs font-bold text-brand-600 bg-brand-50 hover:bg-brand-100 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors">
+                                <i data-lucide="plus" class="w-3.5 h-3.5"></i> Tambah Baris
+                            </button>
+                        </div>
+
+                        <template x-for="(item, index) in items" :key="index">
+                            <div class="flex flex-wrap sm:flex-nowrap gap-3 items-start p-4 bg-gray-50 border border-gray-200 rounded-xl relative group">
+                                <div class="w-full sm:w-5/12">
+                                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Nama Barang</label>
+                                    <input type="text" x-model="item.name" placeholder="Cth: Botol 30ml / Biang Baccarat" class="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 outline-none">
+                                </div>
+                                <div class="w-1/3 sm:w-2/12">
+                                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Qty</label>
+                                    <input type="number" x-model="item.qty" min="1" class="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 outline-none text-center">
+                                </div>
+                                <div class="w-3/5 sm:w-4/12">
+                                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Harga Modal Satuan</label>
+                                    <div class="relative">
+                                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">Rp</span>
+                                        <input type="number" x-model="item.price" class="w-full pl-8 pr-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 outline-none">
+                                    </div>
+                                </div>
+                                <div class="w-auto pt-5 flex justify-end">
+                                    <button @click="removeItem(index)" type="button" class="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Hapus baris">
+                                        <i data-lucide="trash-2" class="w-5 h-5"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <div class="space-y-5 lg:border-l lg:border-gray-100 lg:pl-8">
+                        <div>
+                            <h3 class="text-sm font-bold text-gray-800 uppercase tracking-widest border-b-2 border-brand-500 pb-1 inline-block mb-3">Detail Pembayaran</h3>
+                            
+                            <div class="mb-4">
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Bayar Pakai Rekening</label>
+                                <select class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-700 focus:ring-2 focus:ring-brand-500 outline-none appearance-none">
+                                    <option value="" disabled selected>-- Pilih Sumber Dana --</option>
+                                    <option value="BCA">Bank BCA (IDR)</option>
+                                    <option value="JAGO">Bank Jago (IDR)</option>
+                                    <option value="ABA">ABA Bank (USD)</option>
+                                    <option value="CASH">Cash Laci (IDR/KHR)</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Biaya Ongkir / Jastip</label>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">Rp</span>
+                                    <input type="number" x-model="shipping" class="w-full pl-8 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all" placeholder="0">
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Catatan Tambahan</label>
+                                <textarea rows="2" class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 outline-none resize-none" placeholder="Cth: Beli di Tokopedia, resi JNE..."></textarea>
+                            </div>
+                        </div>
+
+                        <div class="bg-gray-900 rounded-xl p-4 text-white shadow-lg">
+                            <div class="flex justify-between items-center text-xs text-gray-400 mb-2">
+                                <span>Subtotal Barang:</span>
+                                <span class="font-bold text-white">Rp <span x-text="calculateSubtotal().toLocaleString('id-ID')"></span></span>
+                            </div>
+                            <div class="flex justify-between items-center text-xs text-gray-400 mb-3 border-b border-gray-700 pb-3">
+                                <span>Ongkir / Jastip:</span>
+                                <span class="font-bold text-orange-400">+ Rp <span x-text="Number(shipping || 0).toLocaleString('id-ID')"></span></span>
+                            </div>
+                            <div class="flex justify-between items-end">
+                                <span class="text-xs font-bold uppercase tracking-widest text-brand-400">Total Keluar</span>
+                                <span class="text-xl font-black">Rp <span x-text="calculateGrandTotal().toLocaleString('id-ID')"></span></span>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="p-5 border-t border-gray-100 bg-gray-50 flex justify-end gap-3 shrink-0">
+                <button @click="closePOModal()" type="button" class="px-5 py-2.5 text-sm font-bold text-gray-600 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors">Batal</button>
+                <button type="button" class="px-5 py-2.5 text-sm font-black text-brand-900 bg-brand-500 hover:bg-brand-600 rounded-xl shadow-lg shadow-brand-500/30 transition-all active:scale-95 flex items-center gap-2">
+                    <i data-lucide="check-circle" class="w-4 h-4"></i> Proses & Simpan PO
+                </button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    function stockBelanja() {
+        return {
+            isModalOpen: false,
+            items: [
+                { name: '', qty: 1, price: 0 } // Default 1 baris kosong
+            ],
+            shipping: 0,
+            
+            openPOModal() {
+                this.isModalOpen = true;
+                document.body.style.overflow = 'hidden'; // Kunci scroll background
+            },
+            
+            closePOModal() {
+                this.isModalOpen = false;
+                setTimeout(() => {
+                    document.body.style.overflow = 'auto'; // Buka scroll
+                    // Reset form kalau butuh
+                    this.items = [{ name: '', qty: 1, price: 0 }];
+                    this.shipping = 0;
+                }, 300);
+            },
+
+            addItem() {
+                this.items.push({ name: '', qty: 1, price: 0 });
+            },
+
+            removeItem(index) {
+                if (this.items.length > 1) {
+                    this.items.splice(index, 1);
+                } else {
+                    alert("Minimal harus ada 1 barang dalam PO!");
+                }
+            },
+
+            calculateSubtotal() {
+                return this.items.reduce((total, item) => {
+                    const qty = Number(item.qty) || 0;
+                    const price = Number(item.price) || 0;
+                    return total + (qty * price);
+                }, 0);
+            },
+
+            calculateGrandTotal() {
+                const subtotal = this.calculateSubtotal();
+                const shippingCost = Number(this.shipping) || 0;
+                return subtotal + shippingCost;
+            }
+        }
+    }
+</script>
+{% endblock %}
