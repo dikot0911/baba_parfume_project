@@ -620,7 +620,7 @@ async def get_chat_history(tele_id: int):
             return {"status": "success", "history": []}
             
         sid = res_sess.data[0]['id']
-        res_msg = supabase.table("ai_chat_messages").select("role, content").eq("session_id", sid).order("created_at", asc=True).execute()
+        res_msg = supabase.table("ai_chat_messages").select("role, content").eq("session_id", sid).order("created_at", desc=False).execute()
         return {"status": "success", "history": res_msg.data or []}
     except:
         return {"status": "success", "history": []}
