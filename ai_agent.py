@@ -49,7 +49,7 @@ async def get_ai_recommendation(tele_id: int, user_message: str):
         }).execute()
 
         # 2. Tarik Riwayat Chat (Memory) biar AI ingat obrolan sebelumnya
-        history_res = supabase.table("ai_chat_messages").select("role, content").eq("session_id", sid).order("created_at", asc=True).limit(10).execute()
+        history_res = supabase.table("ai_chat_messages").select("role, content").eq("session_id", sid).order("created_at", desc=False).limit(10).execute()
         chat_context = ""
         for h in (history_res.data or []):
             role_name = "User" if h['role'] == 'user' else "AI"
