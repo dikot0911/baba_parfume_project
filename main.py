@@ -1088,6 +1088,25 @@ async def delete_staff(request: Request, admin_id: int):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/admin/profile", response_class=HTMLResponse, tags=["Admin Settings"], dependencies=[Depends(verify_admin)])
+async def admin_profile_page(request: Request):
+    """Halaman buat ngecek detail akun si admin yang lagi login"""
+    # Ambil data tambahan dari database kalau dia bukan super_admin
+    admin_detail = {}
+    if getattr(request.state, 'admin_role', '') != 'super_admin' and supabase:
+        try:
+            res = supabase.table("admins").select("*").eq("username", request.state.admin_user).single().execute()
+            if res.data:
+                admin_detail = res.data
+        except Exception as e:
+            logger.error(f"❌ [PROFILE FETCH ERROR]: {e}")
+
+    return render_admin_template(
+        request, 
+        "admin/profile.html", 
+        admin_detail=admin_detail
+    )
+
 # ==============================================================================
 # ENTRY POINT RUNNER (UVICORN)
 # ==============================================================================
