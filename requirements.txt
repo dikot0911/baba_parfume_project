@@ -6,4 +6,4 @@ jinja2
 python-dotenv
 websockets
 python-multipart
-google-generativeai
+google-genai
