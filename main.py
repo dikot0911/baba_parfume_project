@@ -174,10 +174,10 @@ async def read_root(request: Request):
             print(f"❌ [ERROR LOAD FRONTEND CUSTOMER]: {e}")
 
     # 3. Lempar semua data mateng ke file index.html
-    return templates.TemplateResponse("customer/index.html", {
+    return templates.TemplateResponse(request=request, name="customer/index.html", context={
         "request": request, 
-        "settings": settings_data,  # <--- Biar HTML tau no WA admin & Nama Toko
-        "produk": produk_aktif      # <--- Biar HTML bisa langsung nampilin katalog
+        "settings": settings_data, 
+        "produk": produk_aktif
     })
 
 @app.post("/api/v1/checkout", tags=["API External"])
@@ -340,7 +340,7 @@ async def admin_dashboard(request: Request):
             print(f"❌ [ERROR DASHBOARD]: {e}")
 
     # Lempar ke dashboard.html yang baru!
-    return templates.TemplateResponse("admin/dashboard.html", {
+    return templates.TemplateResponse(request=request, name="admin/dashboard.html", context={
         "request": request, 
         "metrics": metrics, 
         "recent_orders": recent_orders,
@@ -608,7 +608,7 @@ async def update_settings(
 @app.get("/cs", response_class=HTMLResponse, tags=["Web Customer"])
 async def chat_ai_page(request: Request):
     """Nampilin halaman chat AI buat pelanggan"""
-    return templates.TemplateResponse("customer/cs.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="customer/cs.html", context={"request": request})
 
 @app.get("/api/v1/chat/history")
 async def get_chat_history(tele_id: int):
@@ -660,7 +660,7 @@ async def chat_reset(request: Request):
 @app.get("/admin/cs", response_class=HTMLResponse, tags=["Admin CRM"])
 async def admin_cs_panel(request: Request):
     """Halaman Dashboard CS buat lu mantau AI"""
-    return templates.TemplateResponse("admin/cs_management.html", {
+    return templates.TemplateResponse(request=request, name="admin/cs_management.html", context={
         "request": request, 
         "pending_count": get_pending_count()
     })
