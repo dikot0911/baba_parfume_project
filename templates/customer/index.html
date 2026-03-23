@@ -59,6 +59,8 @@
 </head>
 
 <body x-data="babaStore()" x-init="initData()" class="text-gray-800" :class="isDetailModalOpen || isCartOpen || isConfirmModalOpen ? 'overflow-hidden' : 'pb-32'">
+    <script id="initial-products-data" type="application/json">{{ produk | tojson }}</script>
+    <script id="initial-settings-data" type="application/json">{{ settings | tojson }}</script>
 
     <div class="fixed top-4 left-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none">
         <template x-for="toast in toasts" :key="toast.id">
@@ -563,6 +565,17 @@
                 
                 // TELEGRAM USER
                 tgUser: { first_name: 'Kamu', username: '', photo_url: '', id: '' },
+                settings: {},
+
+                readInitialData(elementId, fallback) {
+                    const node = document.getElementById(elementId);
+                    if (!node) return fallback;
+                    try {
+                        return JSON.parse(node.textContent || 'null') ?? fallback;
+                    } catch (_) {
+                        return fallback;
+                    }
+                },
 
                 initData() {
                     // INIT TELEGRAM API
@@ -576,20 +589,23 @@
                         }
                     }
 
-                    // FETCH DATA DARI DATABASE (main.py)
+                    this.products = this.readInitialData('initial-products-data', []);
+                    this.settings = this.readInitialData('initial-settings-data', {});
+
                     fetch('/api/v1/products/live')
-                        .then(res => res.json())
-                        .then(data => {
-                            if (data.status === 'success') {
-                                this.products = data.data;
+                        .then(async (res) => {
+                            const data = await res.json();
+                            if (!res.ok || data.status !== 'success') {
+                                throw new Error(data.message || data.error || 'Katalog tidak tersedia');
+                            }
+                            this.products = data.data || [];
+                        })
+                        .catch((err) => {
+                            if (!this.products.length) {
+                                this.showToast(err.message || 'Gagal memuat katalog parfum', 'error');
                             }
                         })
-                        .catch(err => {
-                            console.error("Error Fetch:", err);
-                            this.showToast('Gagal memuat katalog parfum', 'error');
-                        })
                         .finally(() => {
-                            // Simulasi delay dikit biar animasi skeleton keliatan elegan
                             setTimeout(() => {
                                 this.isLoading = false;
                                 setTimeout(() => lucide.createIcons(), 50);
@@ -766,9 +782,9 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload)
                     })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.status === 'success') {
+                    .then(async (response) => ({ response, data: await response.json() }))
+                    .then(({ response, data }) => {
+                        if (response.ok && data.status === 'success') {
                             if (window.Telegram && window.Telegram.WebApp.HapticFeedback) {
                                 window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
                             }
@@ -783,11 +799,10 @@
                                 this.cart = [];
                             }
                         } else {
-                            throw new Error(data.error || "Gagal diproses di server");
+                            throw new Error(data.message || data.error || 'Gagal diproses di server');
                         }
                     })
                     .catch(error => {
-                        console.error("Checkout Error:", error);
                         this.showToast('Sistem sibuk: ' + error.message, 'error');
                         btn.innerHTML = originalText;
                         btn.disabled = false;

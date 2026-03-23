@@ -211,7 +211,7 @@
                         this.stats.active_sessions = data.sessions.filter(s => s.is_active).length;
                         this.stats.admin_takes = data.admin_takes || 0;
                     }
-                } catch (e) { console.error("Refresh failed", e); }
+                } catch (e) { /* silently handled to keep dashboard clean */ }
             },
 
             filteredSessions() {
@@ -233,7 +233,7 @@
                     if(data.status === 'success') {
                         this.currentMessages = data.messages;
                     }
-                } catch (e) { console.error("Load messages failed", e); }
+                } catch (e) { /* silently handled to keep dashboard clean */ }
             },
 
             async sendAdminMessage() {
@@ -263,7 +263,7 @@
                     });
                     const data = await res.json();
                     if(data.status !== 'success') alert("Gagal kirim pesan manual!");
-                } catch (e) { console.error("Send failed", e); }
+                } catch (e) { /* silently handled to keep dashboard clean */ }
             },
 
             scrollToBottom() {

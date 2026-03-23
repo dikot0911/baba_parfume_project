@@ -1,6 +1,9 @@
 import os
+import logging
 from dotenv import load_dotenv
 from supabase import create_client, Client
+
+logger = logging.getLogger("baba.database")
 
 # Cek apakah file .env ada, baru di-load (biar nggak error di server)
 if os.path.exists(".env"):
@@ -12,17 +15,16 @@ key: str = os.getenv("SUPABASE_KEY")
 
 # Validasi awal: Biar nggak bingung kalau lupa masukin variable di Render
 if not url or not key:
-    print("⚠️ [WARNING] SUPABASE_URL atau SUPABASE_KEY nggak ketemu!")
-    print("Pastikan sudah isi di Dashboard Render > Environment")
+    logger.info("SUPABASE_URL atau SUPABASE_KEY belum terpasang; aplikasi berjalan dalam mode fallback")
 
 # Bikin mesin koneksi ke Supabase
 try:
     # Pastikan url dan key tidak None sebelum create_client
     if url and key:
         supabase: Client = create_client(url, key)
-        print("✅ Berhasil connect ke brankas Supabase!")
+        logger.info("Berhasil connect ke Supabase")
     else:
         supabase = None
 except Exception as e:
-    print(f"❌ Gagal connect ke Supabase: {e}")
+    logger.warning("Gagal connect ke Supabase: %s", e)
     supabase = None
