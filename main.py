@@ -646,6 +646,37 @@ async def get_chat_history(tele_id: int):
     except Exception:
         return api_success(history=[])
 
+@app.post("/api/v1/chat/feedback")
+async def submit_ai_feedback(request: Request):
+    """Jalur pipa buat nangkep rating bintang dan keluhan user ke AI"""
+    data = await request.json()
+    tele_id = data.get("tele_id")
+    rating = data.get("rating")
+    complaint = data.get("complaint", "") # Kalau user cuma kasih bintang tanpa ngetik, ini tetep aman
+
+    # Validasi biar ga ada data bodong masuk
+    if not tele_id or not rating:
+        return JSONResponse(
+            status_code=400, 
+            content={"status": "error", "message": "ID Telegram atau Rating kosong"}
+        )
+
+    try:
+        if supabase:
+            # Masukin ke brankas database
+            supabase.table("ai_feedbacks").insert({
+                "telegram_id": int(tele_id),
+                "rating": int(rating),
+                "complaint": complaint
+            }).execute()
+            print(f"🌟 [FEEDBACK MASUK] User {tele_id} kasih bintang {rating}")
+            
+        return {"status": "success", "message": "Feedback berhasil disimpan, makasih kak!"}
+        
+    except Exception as e:
+        print(f"❌ [API FEEDBACK ERROR]: {e}")
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
 @app.post("/api/v1/chat/send")
 async def chat_ai_send(request: Request):
     data = await request.json()
