@@ -6,6 +6,7 @@ import logging
 import asyncio
 from typing import Any, List, Optional, Dict
 from datetime import datetime
+from dotenv import load_dotenv
 
 # ==============================================================================
 # FASTAPI & ENTERPRISE DEPENDENCIES
@@ -33,11 +34,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger("baba.enterprise")
 
+load_dotenv()
+
 # Konfigurasi Keamanan Admin
 ADMIN_USER = os.getenv("ADMIN_USER", "admin")
 ADMIN_PASS = os.getenv("ADMIN_PASS", "baba2026")
 SECRET_TOKEN = os.getenv("SECRET_TOKEN", "super-secret-baba-token-777")
 COOKIE_NAME = "baba_admin_session"
+COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() in {"1", "true", "yes", "on"}
+ALLOWED_ADMIN_ROLES = {"super_admin", "oprasional", "marketing", "cs", "visitor"}
 
 # ==============================================================================
 # 1. IMPORT BOT MODULE (TELEGRAM INTEGRATION)
@@ -191,12 +196,34 @@ class ChatResetPayload(BaseModel):
 import hashlib
 import base64
 
+
+def sanitize_admin_role(role: Optional[str]) -> str:
+    normalized_role = (role or "").strip().lower()
+    return normalized_role if normalized_role in ALLOWED_ADMIN_ROLES else ""
+
+
+def decode_admin_cookie(token: str) -> tuple[str, str, str]:
+    raw_decoded = base64.b64decode(token).decode()
+    username, role, name, signature = raw_decoded.split("|")
+    expected_sig = hashlib.sha256(f"{username}|{role}|{name}|{SECRET_TOKEN}".encode()).hexdigest()
+    if signature != expected_sig:
+        raise ValueError("Signature Cookie Dipalsukan!")
+    role = sanitize_admin_role(role)
+    if not role:
+        raise ValueError("Role admin tidak dikenal.")
+    return username.strip(), role, name.strip()
+
 def create_secure_cookie(username: str, role: str, name: str) -> str:
     """Bikin tiket cookie yang dienkripsi biar ga bisa dipalsuin hacker"""
-    raw_data = f"{username}|{role}|{name}|{SECRET_TOKEN}"
+    safe_username = username.strip().lower()
+    safe_role = sanitize_admin_role(role)
+    if not safe_role:
+        raise ValueError("Role admin tidak valid.")
+    safe_name = name.strip()
+    raw_data = f"{safe_username}|{safe_role}|{safe_name}|{SECRET_TOKEN}"
     signature = hashlib.sha256(raw_data.encode()).hexdigest()
     # Gabungin data asli sama tanda tangannya (signature), lalu ubah ke Base64
-    cookie_value = base64.b64encode(f"{username}|{role}|{name}|{signature}".encode()).decode()
+    cookie_value = base64.b64encode(f"{safe_username}|{safe_role}|{safe_name}|{signature}".encode()).decode()
     return cookie_value
 
 async def verify_admin(request: Request):
@@ -206,18 +233,36 @@ async def verify_admin(request: Request):
         raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/admin/login"})
     
     try:
-        raw_decoded = base64.b64decode(token).decode()
-        username, role, name, signature = raw_decoded.split("|")
-        
-        # Validasi apakah cookie ini asli buatan sistem kita
-        expected_sig = hashlib.sha256(f"{username}|{role}|{name}|{SECRET_TOKEN}".encode()).hexdigest()
-        if signature != expected_sig:
-            raise Exception("Signature Cookie Dipalsukan!")
-        
+        username, role, name = decode_admin_cookie(token)
+
+        if role == "super_admin":
+            if username != ADMIN_USER.strip().lower():
+                raise ValueError("Username super admin tidak cocok dengan .env.")
+            current_name = "Dewa BABA (Super Admin)"
+        else:
+            if not supabase:
+                raise ValueError("Database admin tidak tersedia.")
+
+            admin_res = (
+                supabase.table("admins")
+                .select("username, full_name, role")
+                .eq("username", username)
+                .limit(1)
+                .execute()
+            )
+            if not admin_res.data:
+                raise ValueError("Akun admin tidak ditemukan lagi.")
+
+            admin_data = admin_res.data[0]
+            db_role = sanitize_admin_role(admin_data.get("role"))
+            if db_role != role:
+                raise ValueError("Role admin sudah berubah atau tidak valid.")
+            current_name = admin_data.get("full_name") or name or username
+
         # Simpan data profil ke 'state' biar bisa dibaca sama Jinja2 HTML
         request.state.admin_user = username
         request.state.admin_role = role
-        request.state.admin_name = name
+        request.state.admin_name = current_name
         return True
     except Exception as e:
         logger.warning(f"🔒 [AUTH HACK ATTEMPT] Cookie gak valid: {e}")
@@ -227,6 +272,20 @@ async def verify_admin_api(request: Request):
     """Dependency: Mengamankan API Admin"""
     await verify_admin(request) # Pake logika yang sama aja
     return True
+
+
+def require_admin_roles(*allowed_roles: str):
+    normalized_roles = {sanitize_admin_role(role) for role in allowed_roles}
+    normalized_roles.discard("")
+
+    async def dependency(request: Request):
+        await verify_admin(request)
+        current_role = getattr(request.state, "admin_role", "")
+        if normalized_roles and current_role not in normalized_roles:
+            raise HTTPException(status_code=403, detail="Akses admin ditolak untuk halaman ini.")
+        return True
+
+    return Depends(dependency)
 
 # ==============================================================================
 # 7. UTILITY & HELPER FUNCTIONS
@@ -247,6 +306,17 @@ def format_datetime(value: str) -> str:
 
 templates.env.filters["currency"] = format_currency
 templates.env.filters["datetime"] = format_datetime
+
+
+def render_admin_template(request: Request, template_name: str, **context):
+    admin_context = {
+        "request": request,
+        "admin_name": getattr(request.state, "admin_name", "Admin BABA"),
+        "admin_role": getattr(request.state, "admin_role", ""),
+        "pending_count": get_pending_count(),
+    }
+    admin_context.update(context)
+    return templates.TemplateResponse(request=request, name=template_name, context=admin_context)
 
 def get_pending_count() -> int:
     """Mengambil jumlah order pending untuk notif merah di sidebar admin"""
@@ -301,16 +371,23 @@ def normalize_product(item: dict) -> dict:
 # ==============================================================================
 @app.get("/admin/login", response_class=HTMLResponse, tags=["Admin Auth"])
 async def login_page(request: Request):
+    if request.cookies.get(COOKIE_NAME):
+        try:
+            await verify_admin(request)
+            return RedirectResponse(url="/admin", status_code=status.HTTP_303_SEE_OTHER)
+        except HTTPException:
+            pass
     return templates.TemplateResponse(request=request, name="admin/login.html")
 
 @app.post("/admin/login", response_class=HTMLResponse, tags=["Admin Auth"])
 async def do_login(request: Request, username: str = Form(...), password: str = Form(...)):
     """Memproses Login: Cek Super Admin dulu, kalau bukan baru cari di Database Staff"""
+    username = username.strip().lower()
     role = ""
     name = ""
     
     # 1. CEK SUPER ADMIN (Data dari .env)
-    if username == ADMIN_USER and password == ADMIN_PASS:
+    if username == ADMIN_USER.strip().lower() and password == ADMIN_PASS:
         role = "super_admin"
         name = "Dewa BABA (Super Admin)"
         logger.info(f"🔓 [AUTH] SUPER ADMIN berhasil login.")
@@ -322,21 +399,38 @@ async def do_login(request: Request, username: str = Form(...), password: str = 
         
         # Hash password input buat dicocokin sama hash di database
         hashed_pw = hashlib.sha256(password.encode()).hexdigest()
-        res = supabase.table("admins").select("*").eq("username", username).eq("password_hash", hashed_pw).execute()
+        res = (
+            supabase.table("admins")
+            .select("*")
+            .eq("username", username)
+            .eq("password_hash", hashed_pw)
+            .limit(1)
+            .execute()
+        )
         
         if not res.data:
             logger.warning(f"🚨 [AUTH] Gagal login username: {username}")
             return templates.TemplateResponse(request=request, name="admin/login.html", context={"error": "Username atau Password salah bre!"})
         
         staff_data = res.data[0]
-        role = staff_data['role']
+        role = sanitize_admin_role(staff_data.get('role'))
+        if not role or role == "super_admin":
+            logger.warning(f"🚨 [AUTH] Role staff tidak valid buat username: {username}")
+            return templates.TemplateResponse(request=request, name="admin/login.html", context={"error": "Role admin tidak valid."})
         name = staff_data['full_name']
         logger.info(f"🔓 [AUTH] STAFF '{name}' ({role}) berhasil login.")
 
     # 3. TERBITKAN TIKET COOKIE AMAN
     cookie_val = create_secure_cookie(username, role, name)
     response = RedirectResponse(url="/admin", status_code=status.HTTP_303_SEE_OTHER)
-    response.set_cookie(key=COOKIE_NAME, value=cookie_val, httponly=True, max_age=43200, secure=True) # 12 Jam
+    response.set_cookie(
+        key=COOKIE_NAME,
+        value=cookie_val,
+        httponly=True,
+        max_age=43200,
+        secure=COOKIE_SECURE,
+        samesite="lax"
+    ) # 12 Jam
     return response
 
 @app.get("/admin/logout", tags=["Admin Auth"])
@@ -612,19 +706,19 @@ async def admin_dashboard(request: Request):
         except Exception as e:
             logger.error(f"❌ [ADMIN DASHBOARD ERROR]: {e}")
 
-    return templates.TemplateResponse(request=request, name="admin/dashboard.html", context={
-        "request": request, 
-        "metrics": metrics, 
-        "recent_orders": recent_orders,
-        "top_products": top_products,
-        "pending_count": get_pending_count()
-    })
+    return render_admin_template(
+        request,
+        "admin/dashboard.html",
+        metrics=metrics,
+        recent_orders=recent_orders,
+        top_products=top_products
+    )
 
 
 # ==============================================================================
 # ROUTER 4: MANAJEMEN INVENTARIS STOK (TERGEMBOK 🔐)
 # ==============================================================================
-@app.get("/admin/stock", response_class=HTMLResponse, tags=["Admin Inventory"], dependencies=[Depends(verify_admin)])
+@app.get("/admin/stock", response_class=HTMLResponse, tags=["Admin Inventory"], dependencies=[require_admin_roles("super_admin", "oprasional")])
 async def admin_stock(request: Request):
     """Menampilkan halaman manajer produk"""
     data_parfum = []
@@ -635,13 +729,9 @@ async def admin_stock(request: Request):
         except Exception as e:
             logger.error(f"❌ [ADMIN STOCK ERROR]: {e}")
 
-    return templates.TemplateResponse(request=request, name="admin/stock.html", context={
-        "request": request, 
-        "produk": data_parfum,
-        "pending_count": get_pending_count()
-    })
+    return render_admin_template(request, "admin/stock.html", produk=data_parfum)
 
-@app.post("/admin/add-product", tags=["Admin Inventory"], dependencies=[Depends(verify_admin)])
+@app.post("/admin/add-product", tags=["Admin Inventory"], dependencies=[require_admin_roles("super_admin", "oprasional")])
 async def add_product(
     name: str = Form(...),
     category_id: int = Form(1),
@@ -677,7 +767,7 @@ async def add_product(
         logger.error(f"❌ [INVENTORY ADD ERROR]: {e}")
         raise HTTPException(status_code=500, detail="Gagal menyimpan produk baru")
 
-@app.post("/admin/stock/edit/{pid}", tags=["Admin Inventory"], dependencies=[Depends(verify_admin)])
+@app.post("/admin/stock/edit/{pid}", tags=["Admin Inventory"], dependencies=[require_admin_roles("super_admin", "oprasional")])
 async def edit_product(
     pid: int, 
     name: str = Form(...), 
@@ -714,7 +804,7 @@ async def edit_product(
         logger.error(f"❌ [INVENTORY EDIT ERROR]: {e}")
         raise HTTPException(status_code=500, detail="Gagal mengupdate produk")
 
-@app.get("/admin/stock/delete/{pid}", tags=["Admin Inventory"], dependencies=[Depends(verify_admin)])
+@app.get("/admin/stock/delete/{pid}", tags=["Admin Inventory"], dependencies=[require_admin_roles("super_admin", "oprasional")])
 async def delete_product(pid: int):
     """Menghapus (atau menyembunyikan) varian dari database"""
     try:
@@ -731,7 +821,7 @@ async def delete_product(pid: int):
 # ==============================================================================
 # ROUTER 5: CRM (CUSTOMER & ORDER MANAGEMENT) (TERGEMBOK 🔐)
 # ==============================================================================
-@app.get("/admin/orders", response_class=HTMLResponse, tags=["Admin CRM"], dependencies=[Depends(verify_admin)])
+@app.get("/admin/orders", response_class=HTMLResponse, tags=["Admin CRM"], dependencies=[require_admin_roles("super_admin", "oprasional")])
 async def admin_orders(request: Request):
     """Pusat manajemen pesanan yang masuk"""
     pesanan = []
@@ -745,13 +835,9 @@ async def admin_orders(request: Request):
         except Exception as e:
             logger.error(f"❌ [ADMIN ORDERS ERROR]: {e}")
             
-    return templates.TemplateResponse(request=request, name="admin/orders.html", context={
-        "request": request, 
-        "pesanan": pesanan, 
-        "pending_count": get_pending_count()
-    })
+    return render_admin_template(request, "admin/orders.html", pesanan=pesanan)
 
-@app.post("/admin/update-order-status", tags=["Admin CRM"], dependencies=[Depends(verify_admin)])
+@app.post("/admin/update-order-status", tags=["Admin CRM"], dependencies=[require_admin_roles("super_admin", "oprasional")])
 async def update_order_status(order_id: str = Form(...), status_order: str = Form(..., alias="status")):
     """Ubah status resi dan tembak notifikasi via bot otomatis"""
     try:
@@ -786,7 +872,7 @@ async def update_order_status(order_id: str = Form(...), status_order: str = For
         logger.error(f"❌ [UPDATE STATUS ERROR]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/admin/customers", response_class=HTMLResponse, tags=["Admin CRM"], dependencies=[Depends(verify_admin)])
+@app.get("/admin/customers", response_class=HTMLResponse, tags=["Admin CRM"], dependencies=[require_admin_roles("super_admin", "marketing")])
 async def admin_customers(request: Request):
     """Menampilkan direktori klien/pelanggan beserta rekam jejak LTV (Lifetime Value)"""
     pelanggan = []
@@ -807,13 +893,9 @@ async def admin_customers(request: Request):
         except Exception as e:
             logger.error(f"❌ [ADMIN CUSTOMERS ERROR]: {e}")
             
-    return templates.TemplateResponse(request=request, name="admin/customers.html", context={
-        "request": request, 
-        "pelanggan": pelanggan, 
-        "pending_count": get_pending_count()
-    })
+    return render_admin_template(request, "admin/customers.html", pelanggan=pelanggan)
 
-@app.post("/admin/customers/edit/{cid}", tags=["Admin CRM"], dependencies=[Depends(verify_admin)])
+@app.post("/admin/customers/edit/{cid}", tags=["Admin CRM"], dependencies=[require_admin_roles("super_admin", "marketing")])
 async def edit_customer(
     cid: str, 
     full_name: str = Form(...), 
@@ -834,7 +916,7 @@ async def edit_customer(
 # ==============================================================================
 # ROUTER 6: SISTEM PENGATURAN TOKO (TERGEMBOK 🔐)
 # ==============================================================================
-@app.get("/admin/settings", response_class=HTMLResponse, tags=["Admin Settings"], dependencies=[Depends(verify_admin)])
+@app.get("/admin/settings", response_class=HTMLResponse, tags=["Admin Settings"], dependencies=[require_admin_roles("super_admin")])
 async def admin_settings(request: Request):
     """Panel konfigurasi web dan chatbot"""
     settings_data = {
@@ -850,13 +932,9 @@ async def admin_settings(request: Request):
         except Exception as e:
             logger.info("Store settings default di-load")
             
-    return templates.TemplateResponse(request=request, name="admin/settings.html", context={
-        "request": request, 
-        "settings": settings_data, 
-        "pending_count": get_pending_count()
-    })
+    return render_admin_template(request, "admin/settings.html", settings=settings_data)
 
-@app.post("/admin/settings/update", tags=["Admin Settings"], dependencies=[Depends(verify_admin)])
+@app.post("/admin/settings/update", tags=["Admin Settings"], dependencies=[require_admin_roles("super_admin")])
 async def update_settings(
     store_name: str = Form(...),
     admin_whatsapp: str = Form(""),
@@ -881,15 +959,12 @@ async def update_settings(
 # ==============================================================================
 # ROUTER 7: ADMIN CS PANEL (SADAP CHAT AI) (TERGEMBOK API 🔐)
 # ==============================================================================
-@app.get("/admin/cs", response_class=HTMLResponse, tags=["Admin CRM"], dependencies=[Depends(verify_admin)])
+@app.get("/admin/cs", response_class=HTMLResponse, tags=["Admin CRM"], dependencies=[require_admin_roles("super_admin", "marketing", "cs")])
 async def admin_cs_panel(request: Request):
     """Menampilkan Control Room untuk memantau semua obrolan AI pelanggan"""
-    return templates.TemplateResponse(request=request, name="admin/cs_management.html", context={
-        "request": request, 
-        "pending_count": get_pending_count()
-    })
+    return render_admin_template(request, "admin/cs_management.html")
 
-@app.get("/api/v1/admin/cs/sessions", tags=["API Admin CRM"], dependencies=[Depends(verify_admin_api)])
+@app.get("/api/v1/admin/cs/sessions", tags=["API Admin CRM"], dependencies=[require_admin_roles("super_admin", "marketing", "cs")])
 async def api_admin_get_sessions():
     """Mengambil daftar list obrolan yang sedang aktif/riwayat"""
     try:
@@ -899,7 +974,7 @@ async def api_admin_get_sessions():
     except Exception as e:
         return api_error(str(e), status_code=500)
 
-@app.get("/api/v1/admin/cs/messages", tags=["API Admin CRM"], dependencies=[Depends(verify_admin_api)])
+@app.get("/api/v1/admin/cs/messages", tags=["API Admin CRM"], dependencies=[require_admin_roles("super_admin", "marketing", "cs")])
 async def api_admin_get_messages(session_id: int):
     """Intip isi percakapan satu sesi tertentu"""
     try:
@@ -909,7 +984,7 @@ async def api_admin_get_messages(session_id: int):
     except Exception as e:
         return api_error(str(e), status_code=500)
 
-@app.post("/api/v1/admin/cs/send-manual", tags=["API Admin CRM"], dependencies=[Depends(verify_admin_api)])
+@app.post("/api/v1/admin/cs/send-manual", tags=["API Admin CRM"], dependencies=[require_admin_roles("super_admin", "marketing", "cs")])
 async def api_admin_send_manual(payload: AdminManualChatPayload):
     """Fungsi pengambilalihan kendali: Lu (Admin) balas chat user secara paksa"""
     try:
@@ -937,13 +1012,9 @@ async def api_admin_send_manual(payload: AdminManualChatPayload):
 # ==============================================================================
 # ROUTER 8: MANAJEMEN STAFF & HAK AKSES (ZONA DEWA 🔐)
 # ==============================================================================
-@app.get("/admin/staff", response_class=HTMLResponse, tags=["Admin Dewa"], dependencies=[Depends(verify_admin)])
+@app.get("/admin/staff", response_class=HTMLResponse, tags=["Admin Dewa"], dependencies=[require_admin_roles("super_admin")])
 async def admin_staff_page(request: Request):
     """Menampilkan daftar karyawan BABA, khusus Super Admin"""
-    # Validasi lapis kedua, pastikan cuma dewa yang bisa buka
-    if getattr(request.state, 'admin_role', '') != 'super_admin':
-        raise HTTPException(status_code=403, detail="Minggir bre, lu bukan Super Admin!")
-        
     staff_list = []
     if supabase:
         try:
@@ -952,15 +1023,9 @@ async def admin_staff_page(request: Request):
         except Exception as e:
             logger.error(f"❌ [STAFF DB ERROR]: {e}")
 
-    return templates.TemplateResponse(request=request, name="admin/staff.html", context={
-        "request": request, 
-        "staffs": staff_list,
-        "admin_name": request.state.admin_name,
-        "admin_role": request.state.admin_role,
-        "pending_count": get_pending_count()
-    })
+    return render_admin_template(request, "admin/staff.html", staffs=staff_list)
 
-@app.post("/admin/staff/add", tags=["Admin Dewa"], dependencies=[Depends(verify_admin)])
+@app.post("/admin/staff/add", tags=["Admin Dewa"], dependencies=[require_admin_roles("super_admin")])
 async def add_new_staff(
     request: Request,
     username: str = Form(...),
@@ -968,29 +1033,36 @@ async def add_new_staff(
     full_name: str = Form(...),
     role: str = Form(...)
 ):
-    if getattr(request.state, 'admin_role', '') != 'super_admin':
-        raise HTTPException(status_code=403, detail="Akses Ditolak!")
-
     # Enkripsi password sebelum masuk DB
     import hashlib
     hashed_pw = hashlib.sha256(password.encode()).hexdigest()
+    safe_role = sanitize_admin_role(role)
+    safe_username = username.lower().strip()
+    safe_name = full_name.strip()
+
+    if safe_role in {"", "super_admin"}:
+        raise HTTPException(status_code=400, detail="Role staff tidak valid.")
+    if safe_username == ADMIN_USER.strip().lower():
+        raise HTTPException(status_code=400, detail="Username bentrok dengan super admin dari .env.")
+    if not supabase:
+        raise HTTPException(status_code=503, detail="Database admin tidak tersedia.")
 
     try:
         supabase.table("admins").insert({
-            "username": username.lower().strip(),
+            "username": safe_username,
             "password_hash": hashed_pw,
-            "full_name": full_name,
-            "role": role
+            "full_name": safe_name,
+            "role": safe_role
         }).execute()
-        logger.info(f"👮 [STAFF] Akun baru dibuat: {username} sebagai {role}")
+        logger.info(f"👮 [STAFF] Akun baru dibuat: {safe_username} sebagai {safe_role}")
         return RedirectResponse(url="/admin/staff", status_code=status.HTTP_303_SEE_OTHER)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/admin/staff/delete/{admin_id}", tags=["Admin Dewa"], dependencies=[Depends(verify_admin)])
+@app.get("/admin/staff/delete/{admin_id}", tags=["Admin Dewa"], dependencies=[require_admin_roles("super_admin")])
 async def delete_staff(request: Request, admin_id: int):
-    if getattr(request.state, 'admin_role', '') != 'super_admin':
-        raise HTTPException(status_code=403, detail="Akses Ditolak!")
+    if not supabase:
+        raise HTTPException(status_code=503, detail="Database admin tidak tersedia.")
     try:
         supabase.table("admins").delete().eq("id", admin_id).execute()
         return RedirectResponse(url="/admin/staff", status_code=status.HTTP_303_SEE_OTHER)
