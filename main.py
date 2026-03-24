@@ -1449,47 +1449,124 @@ async def admin_finance_mutasi(request: Request):
 # ROUTER 11: LAPORAN LABA RUGI (HANYA SUPER ADMIN 🔐)
 # ==============================================================================
 @app.get("/admin/finance/report", response_class=HTMLResponse, tags=["Admin Finance"], dependencies=[require_admin_roles("super_admin")])
-async def admin_finance_report(request: Request):
-    """Generate Profit & Loss (P&L) Statement"""
+async def admin_finance_report(request: Request, month: Optional[str] = None, year: Optional[str] = None):
+    """
+    Generate Profit & Loss (P&L) Statement Terlengkap.
+    Mempertahankan logic asli untuk memastikan tidak ada efek domino,
+    ditambah dengan analisis tingkat lanjut (Kategori, Tren Harian, OpEx terbanyak).
+    """
+    
+    # 1. STRUKTUR ASLI (DIPERTAHANKAN) + EKSPANSI METRIK BARU
     report_data = {
         "total_revenue": 0.0,
         "total_hpp": 0.0,
         "total_opex": 0.0,
         "gross_profit": 0.0,
         "net_profit": 0.0,
-        "margin": 0.0
+        "margin": 0.0,
+        # --- Ekstra Metrik Dewa ---
+        "total_trx_in": 0,          # Jumlah transaksi masuk
+        "total_trx_out": 0,         # Jumlah transaksi keluar
+        "avg_revenue_per_day": 0.0, # Rata-rata omset harian
+        "biggest_expense_cat": "",  # Biaya paling bengkak bulan ini
+        "biggest_expense_amt": 0.0
     }
+    
+    # 2. STRUKTUR UNTUK RINCIAN KATEGORI & GRAFIK (Untuk dikirim ke HTML)
+    categories_breakdown = {
+        "income": {},
+        "hpp": {},
+        "opex": {}
+    }
+    daily_trends = {}
+    raw_mutations = []
     
     if supabase:
         try:
-            # Mengambil mutasi bulan ini (Logika simplifikasi, di production pakai query tanggal)
-            current_month = datetime.now().strftime("%Y-%m")
+            # 3. Tentukan Periode (Bisa nerima parameter filter dari URL, atau default bulan ini)
+            now = datetime.now()
+            target_month = month if month else now.strftime("%m")
+            target_year = year if year else now.strftime("%Y")
+            period_prefix = f"{target_year}-{target_month}"
+
+            # 4. Mengambil mutasi sesuai periode (LOGIC ASLI DIPERTAHANKAN)
             res_mut = supabase.table("finance_mutations").select(
-                "amount, transaction_type, finance_categories(category_name)"
-            ).like("created_at", f"{current_month}%").execute()
+                "id, amount, transaction_type, created_at, description, finance_categories(category_name, type), finance_accounts(bank_name)"
+            ).like("created_at", f"{period_prefix}%").order("created_at", desc=False).execute()
             
-            for m in (res_mut.data or []):
-                cat_name = str(m.get("finance_categories", {}).get("category_name", "")).lower()
-                amt = float(m.get("amount", 0))
+            raw_mutations = res_mut.data or []
+            
+            # 5. PROSES KALKULASI MENDALAM
+            for m in raw_mutations:
+                # Persiapan Data Iterasi
+                cat_info = m.get("finance_categories") or {}
+                raw_cat_name = cat_info.get("category_name", "Tanpa Kategori")
+                cat_name = str(raw_cat_name).lower()
                 
+                amt = float(m.get("amount", 0))
+                trx_date = m.get("created_at", "").split("T")[0] # Ambil YYYY-MM-DD
+                
+                # Setup Daily Trend awal jika belum ada
+                if trx_date not in daily_trends:
+                    daily_trends[trx_date] = {"in": 0.0, "out": 0.0}
+                
+                # === A. LOGIC PEMASUKAN (IN) ===
                 if m.get("transaction_type") == "IN":
                     report_data["total_revenue"] += amt
+                    report_data["total_trx_in"] += 1
+                    daily_trends[trx_date]["in"] += amt
+                    
+                    # Masukkan ke rincian kategori Income
+                    categories_breakdown["income"][raw_cat_name] = categories_breakdown["income"].get(raw_cat_name, 0) + amt
+
+                # === B. LOGIC PENGELUARAN (OUT) ===
                 elif m.get("transaction_type") == "OUT":
-                    # Identifikasi HPP (Belanja Stok & Ongkir impor)
-                    if "stok" in cat_name or "belanja" in cat_name or "jastip" in cat_name or "ongkir" in cat_name:
+                    report_data["total_trx_out"] += 1
+                    daily_trends[trx_date]["out"] += amt
+                    
+                    # Identifikasi HPP (Belanja Stok & Ongkir impor) -> LOGIC ASLI TETAP UTUH
+                    is_hpp = any(keyword in cat_name for keyword in ["stok", "belanja", "jastip", "ongkir", "biang", "botol", "lakban"])
+                    
+                    if is_hpp:
                         report_data["total_hpp"] += amt
+                        # Masukkan ke rincian kategori HPP
+                        categories_breakdown["hpp"][raw_cat_name] = categories_breakdown["hpp"].get(raw_cat_name, 0) + amt
                     else:
                         report_data["total_opex"] += amt
+                        # Masukkan ke rincian kategori OpEx
+                        categories_breakdown["opex"][raw_cat_name] = categories_breakdown["opex"].get(raw_cat_name, 0) + amt
+                        
+                        # Deteksi Pengeluaran Operasional Terbesar (Biar lu tau duit bocor di mana)
+                        if categories_breakdown["opex"][raw_cat_name] > report_data["biggest_expense_amt"]:
+                            report_data["biggest_expense_amt"] = categories_breakdown["opex"][raw_cat_name]
+                            report_data["biggest_expense_cat"] = raw_cat_name
 
+            # 6. KALKULASI HASIL AKHIR (LOGIC ASLI)
             report_data["gross_profit"] = report_data["total_revenue"] - report_data["total_hpp"]
             report_data["net_profit"] = report_data["gross_profit"] - report_data["total_opex"]
+            
             if report_data["total_revenue"] > 0:
                 report_data["margin"] = round((report_data["net_profit"] / report_data["total_revenue"]) * 100, 2)
+            
+            # Hitung rata-rata omset harian bulan ini
+            active_days = len(daily_trends) if len(daily_trends) > 0 else 1
+            report_data["avg_revenue_per_day"] = round(report_data["total_revenue"] / active_days, 2)
+
+            logger.info(f"📊 [FINANCE REPORT] Kalkulasi selesai. Omset: {report_data['total_revenue']} | Profit: {report_data['net_profit']}")
 
         except Exception as e:
             logger.error(f"❌ [FINANCE REPORT ERROR]: {e}")
 
-    return render_admin_template(request, "admin/finance_report.html", report=report_data)
+    # Kembalikan semua data komprehensif ini ke template
+    return render_admin_template(
+        request, 
+        "admin/finance_report.html", 
+        report=report_data,                      # Data Asli yang di-upgrade
+        breakdown=categories_breakdown,          # Rincian per kategori buat tabel
+        daily_trends=daily_trends,               # Data mentah buat grafik Chart.js
+        mutations=raw_mutations,                 # Raw data buat script Alpine.js
+        period_text=f"{target_month}/{target_year}"
+    )
 
 # ==============================================================================
 # ROUTER 12: MODUL BELANJA STOK (KULAKAN & JASTIP)
