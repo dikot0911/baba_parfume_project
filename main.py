@@ -386,7 +386,14 @@ class PurchaseOrderPayload(BaseModel):
     shipping_cost: float = Field(default=0.0)
     notes: str
     items: List[PurchaseItemPayload]
-
+    
+class TransferPayload(BaseModel):
+    from_account_id: int
+    to_account_id: int
+    amount_out: float = Field(..., gt=0)
+    exchange_rate: float = Field(..., gt=0)
+    amount_in: float = Field(..., gt=0)
+    description: str
 
 # ==============================================================================
 # ROUTER 0: LOGIN & LOGOUT ADMIN (PINTU GERBANG)
@@ -1342,6 +1349,76 @@ async def api_manual_transaction(request: Request, payload: ManualTransactionPay
     except Exception as e:
         logger.error(f"❌ [API TRX ERROR]: {e}")
         return api_error("Gagal mencatat transaksi", 500)
+
+@app.post("/api/v1/finance/transfer", tags=["API Finance"], dependencies=[require_admin_roles("super_admin", "oprasional")])
+async def api_transfer_transaction(request: Request, payload: TransferPayload):
+    """Mencatat Pindah Kas / Switch Money Antar Rekening (Mendukung Beda Mata Uang)"""
+    if not supabase: return api_error("Database offline", 503)
+    
+    try:
+        # 1. Cek Rekening Sumber (From)
+        res_from = supabase.table("finance_accounts").select("current_balance, bank_name, currency").eq("id", payload.from_account_id).single().execute()
+        if not res_from.data: return api_error("Rekening sumber tidak ditemukan")
+        
+        # 2. Cek Rekening Tujuan (To)
+        res_to = supabase.table("finance_accounts").select("current_balance, bank_name, currency").eq("id", payload.to_account_id).single().execute()
+        if not res_to.data: return api_error("Rekening tujuan tidak ditemukan")
+
+        balance_from = float(res_from.data.get("current_balance", 0))
+        balance_to = float(res_to.data.get("current_balance", 0))
+
+        # 3. Validasi Saldo Sumber
+        if balance_from < payload.amount_out:
+            return api_error(f"Saldo {res_from.data.get('bank_name')} tidak cukup! Saldo: {balance_from}", 400)
+
+        # 4. Hitung Saldo Baru
+        new_balance_from = balance_from - payload.amount_out
+        new_balance_to = balance_to + payload.amount_in
+
+        # 5. Cari Kategori "Pindah Kas" atau "Transfer"
+        # Kalau gak ada, kita pake ID 1 aja sebagai fallback
+        cat_res = supabase.table("finance_categories").select("id").ilike("category_name", "%pindah%").limit(1).execute()
+        if not cat_res.data:
+            cat_res = supabase.table("finance_categories").select("id").ilike("category_name", "%transfer%").limit(1).execute()
+        
+        cat_id = cat_res.data[0].get("id") if cat_res.data else 1
+
+        # =======================================================
+        # EKSEKUSI DATABASE (POTONG -> TAMBAH -> LOG MUTASI)
+        # =======================================================
+        
+        # Bikin UUID unik untuk referensi transaksi ini (biar gampang dilacak)
+        transfer_ref = f"TF-{datetime.now().strftime('%y%m%d%H%M')}"
+        deskripsi_lengkap = f"[{transfer_ref}] {payload.description} (Rate: {payload.exchange_rate})"
+
+        # A. UPDATE & LOG REKENING SUMBER (KELUAR)
+        supabase.table("finance_accounts").update({"current_balance": new_balance_from}).eq("id", payload.from_account_id).execute()
+        supabase.table("finance_mutations").insert({
+            "account_id": payload.from_account_id,
+            "category_id": cat_id,
+            "transaction_type": "OUT",
+            "amount": payload.amount_out,
+            "balance_after": new_balance_from,
+            "description": f"Pindah kas keluar ke {res_to.data.get('bank_name')} - {deskripsi_lengkap}"
+        }).execute()
+
+        # B. UPDATE & LOG REKENING TUJUAN (MASUK)
+        supabase.table("finance_accounts").update({"current_balance": new_balance_to}).eq("id", payload.to_account_id).execute()
+        supabase.table("finance_mutations").insert({
+            "account_id": payload.to_account_id,
+            "category_id": cat_id,
+            "transaction_type": "IN",
+            "amount": payload.amount_in,
+            "balance_after": new_balance_to,
+            "description": f"Terima pindah kas dari {res_from.data.get('bank_name')} - {deskripsi_lengkap}"
+        }).execute()
+
+        logger.info(f"💱 [FINANCE TRANSFER] {payload.amount_out} {res_from.data.get('currency')} dipindah ke {res_to.data.get('currency')} jadi {payload.amount_in}")
+        return api_success(message="Pindah kas berhasil diproses!")
+
+    except Exception as e:
+        logger.error(f"❌ [API TRANSFER ERROR]: {e}")
+        return api_error("Gagal memproses pindah kas", 500)
 
 # ==============================================================================
 # ROUTER 10: MUTASI BUKU BESAR (ZONA DEWA 🔐)
