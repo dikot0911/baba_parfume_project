@@ -471,6 +471,100 @@ async def do_logout():
 # ==============================================================================
 # ROUTER 1: CUSTOMER FRONTEND (MINI APP & EXTERNAL API)
 # ==============================================================================
+@app.get("/profile", response_class=HTMLResponse, tags=["Web Customer"])
+async def customer_profile_page(request: Request, tele_id: Optional[int] = None):
+    """
+    Halaman Profil Customer: Menampilkan statistik koleksi botol & profil aroma.
+    Tanpa nominal uang, fokus ke kebanggaan koleksi (Gamifikasi).
+    """
+    if not supabase:
+        raise HTTPException(status_code=503, detail="Database sedang offline bre!")
+
+    # 1. Default Data (Jika user belum terdaftar atau tele_id ga ada)
+    cust_data = None
+    stats = {
+        "total_orders": 0,
+        "total_bottles": 0,
+        "favorite_tags": []
+    }
+    history_orders = []
+
+    if tele_id:
+        try:
+            # 2. Ambil Data Dasar Customer
+            res_cust = supabase.table("customers").select("*").eq("telegram_id", tele_id).single().execute()
+            
+            if res_cust.data:
+                cust_data = res_cust.data
+                cust_uuid = cust_data.get("id")
+
+                # 3. Tarik Riwayat Pesanan (Urutkan dari yang terbaru)
+                # Kita cuma butuh ID, Nomor, Status, dan Tanggal. Duitnya kita cuekin!
+                res_orders = supabase.table("orders").select(
+                    "id, order_number, status, created_at"
+                ).eq("customer_id", cust_uuid).order("created_at", desc=True).execute()
+                
+                raw_orders = res_orders.data or []
+                stats["total_orders"] = len(raw_orders)
+
+                if raw_orders:
+                    # Ambil semua order_id buat narik detail item sekaligus (Bulk Select)
+                    order_ids = [o["id"] for o in raw_orders]
+                    
+                    # 4. Tarik Detail Item & Join ke Produk buat ambil Tags (buat AI Profiling)
+                    res_items = supabase.table("order_items").select(
+                        "order_id, quantity, products(name, image_url, tags)"
+                    ).in_("order_id", order_ids).execute()
+                    
+                    all_items = res_items.data or []
+                    
+                    # 5. Logic God Mode: Hitung Total Botol & Analisis Aroma Favorit
+                    tag_counter = {}
+                    
+                    for order in raw_orders:
+                        order["items"] = []
+                        for item in all_items:
+                            if item["order_id"] == order["id"]:
+                                qty = item["quantity"]
+                                prod = item.get("products") or {}
+                                
+                                # Tambahin rincian barang ke list pesanan
+                                order["items"].append({
+                                    "name": prod.get("name", "Varian BABA"),
+                                    "image_url": prod.get("image_url", ""),
+                                    "qty": qty
+                                })
+                                
+                                # Update Statistik Koleksi (Pride Meter)
+                                stats["total_bottles"] += qty
+                                
+                                # Scan Tags buat pembelajaran AI / Profil Selera
+                                p_tags = safe_array(prod.get("tags"))
+                                for tag in p_tags:
+                                    t_up = tag.upper().strip()
+                                    tag_counter[t_up] = tag_counter.get(t_up, 0) + qty
+
+                    history_orders = raw_orders
+                    
+                    # 6. Ambil 3 Aroma Teratas (Signature Style si User)
+                    if tag_counter:
+                        # Sortir dari yang paling banyak dibeli
+                        sorted_tags = sorted(tag_counter.items(), key=lambda x: x[1], reverse=True)
+                        stats["favorite_tags"] = [t[0] for t in sorted_tags[:3]]
+
+            logger.info(f"👤 [PROFILE] User ID:{tele_id} mengintip koleksi ({stats['total_bottles']} botol).")
+
+        except Exception as e:
+            logger.error(f"❌ [PROFILE FETCH ERROR]: {e}")
+            # Kita biarin tetep render pake data default biar gak crash putih layarnya
+
+    return templates.TemplateResponse("customer/profile.html", {
+        "request": request,
+        "customer": cust_data,
+        "stats": stats,
+        "orders": history_orders
+    })
+    
 @app.get("/", response_class=HTMLResponse, tags=["Web Customer"])
 async def read_root(request: Request):
     """Endpoint Utama: Menampilkan Katalog Belanja ke Customer"""
