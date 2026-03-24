@@ -1576,6 +1576,7 @@ async def admin_stock_belanja(request: Request):
     """Halaman rekap dan pembuatan Purchase Order (PO)"""
     purchases = []
     accounts = []
+    products = [] # <--- Tambahin ini biar Autocomplete JS jalan
     
     if supabase:
         try:
@@ -1586,10 +1587,22 @@ async def admin_stock_belanja(request: Request):
 
             res_acc = supabase.table("finance_accounts").select("id, bank_name, currency").eq("is_active", True).execute()
             accounts = res_acc.data or []
+            
+            # --- TAMBAHAN WAJIB UNTUK AUTOCOMPLETE ---
+            res_prod = supabase.table("products").select("id, name, original_price, stock_quantity").eq("is_active", True).execute()
+            products = res_prod.data or []
+            # ------------------------------------------
+
         except Exception as e:
             logger.error(f"❌ [STOCK BELANJA ERROR]: {e}")
 
-    return render_admin_template(request, "admin/stock_belanja.html", purchases=purchases, accounts=accounts)
+    return render_admin_template(
+        request, 
+        "admin/stock_belanja.html", 
+        purchases=purchases, 
+        accounts=accounts,
+        products=products # <--- Jangan lupa di passing ke template
+    )
 
 @app.post("/api/v1/stock/belanja/process", tags=["API Inventory"], dependencies=[require_admin_roles("super_admin", "oprasional")])
 async def api_process_purchase_order(payload: PurchaseOrderPayload):
